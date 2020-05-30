@@ -1,3 +1,5 @@
+import {getTypeStringOf} from "com-tools"
+
 
 type Reviver = (this: any, key: string,value: any) => any;
 type DataType = any;
@@ -13,12 +15,10 @@ type TypeReviver = TypeReviverArray | TypeReviverObject | TypeReviverMap;
 
 
 function toTypeReviverArray(typeReviver:TypeReviver):TypeReviverArray {
-    let typeRevArr:TypeReviverArray = [];
+
     switch (typeReviver.constructor.name) {
         case "Map":{
-            for (let entries of typeReviver as TypeReviverMap){
-                typeRevArr.push(entries);
-            }
+            var typeRevArr = Array.from(typeReviver as TypeReviverMap);
             break;
         }
         case "Array":{
@@ -34,13 +34,33 @@ function toTypeReviverArray(typeReviver:TypeReviver):TypeReviverArray {
 }
 
 
+function toTypeReviverMap(typeReviver:TypeReviver):TypeReviverMap {
+    switch (typeReviver.constructor.name) {
+        case "Map":{
+            var typeRevMap = typeReviver as TypeReviverMap;
+            break;
+        }
+        case "Array":{
+            typeRevMap = new Map(typeReviver as TypeReviverArray);
+            break;
+        }
+        default:{
+            typeRevMap = new Map(Object.entries(typeReviver));
+        }
+    }
+
+    return typeRevMap;
+}
+
+
 
 
 
 function customStringify(value: any, typeReviver:TypeReviver) {
-    let typeRevArr = toTypeReviverArray(typeReviver);
+    let typeRevMap = toTypeReviverMap(typeReviver);
 
     function stringifyReviver(this: any, key: string,value: any) {
+
 
     }
 
