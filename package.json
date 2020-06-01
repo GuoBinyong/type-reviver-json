@@ -43,6 +43,6 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
-    "com-tools": "^1.0.16"
+    "com-tools": "^1.0.17"
   }
 }
