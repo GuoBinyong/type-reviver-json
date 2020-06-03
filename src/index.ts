@@ -1,4 +1,4 @@
-import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType} from "com-tools"
+import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType} from "com-tools";
 
 
 type Reviver = (this: any, key: string,value: any,options:StringifyReviverOptions) => any;
@@ -98,12 +98,14 @@ interface JSONStringifyOptions extends StringifyReviverOptions{
 
 
 
+
+
 export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {},selfCall?:boolean):string {
     if (selfCall){
         var opts = options;
         var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
     }else {
-        opts = Object.assign({mark:"[type]:"},options);
+        opts = Object.assign({mark:"|=|"},options);
         trObj = toTypeReviverObject(typeRevivers);
     }
 
@@ -117,7 +119,7 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
 
 
         let typeStr = getExactTypeStringOf(value);
-        var revier = trObj[typeStr];
+        let revier = trObj[typeStr];
         if (!revier){
             return value;
         }
@@ -135,7 +137,7 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         /*
         在以下任一情况下，均不会添加 mark
         - revier 返回 undefined  :  `rerRes === undefined`
-        - mark 模板没有定义 :  `!mark`
+        - mark 没有定义 :  `!mark`
         - skipMark 为 true : `rerOpts.skipMark`
         - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && !selfCall && count === 1`
         */
@@ -144,7 +146,7 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         }
 
         let rerStr:string = typeof rerRes === "string" ? rerRes : customJSONStringify(value,trObj,opts,true);
-        rerStr = mark.replace(/type/i,typeStr) + rerStr;
+        rerStr = typeStr + mark + rerStr;
 
         return rerStr;
     }
@@ -154,10 +156,121 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
 
 
 
+export enum LostRevier {
+    original="original",
+    remove = "remove",
+    parse = "parse",
+    ignore = "ignore"
+}
+
+
+
+interface JSONParseOptions {
+    mark?:string | string[] | null;   //类型标记
+    lostRevier?:LostRevier;   //当找不到 Revier 时，如何处理
+}
+
+
+
+//类型名字的正则
+var typeNameRegExp = /^[$\w]+$/;
+
+/**
+ * 类型 和 值 的 信息
+ */
+interface TypeValueInfo {
+    mark:string;
+    type:string;
+    value:string;
+    text:string;
+}
+
+function getTypeAndValue(text:string,marks:(string|null)[],typeRevivers:TypeReviverObject): TypeValueInfo | null {
+    let typeName!:string;
+    let itsMark = marks.find(function (markStr) {
+        if (!markStr){
+            return false
+        }
+
+        let index = text.indexOf(markStr);
+        if (index < 0){
+            return false;
+        }
+
+        let typeStr = text.substring(0,index);
+        if (typeNameRegExp.test(typeStr)){
+            typeName = typeStr;
+            return true
+        }
+    });
+
+    if (!itsMark){
+        return null;
+    }
+
+    return itsMark ? {
+        mark:itsMark,
+        type:typeName,
+        value:text.replace(typeName + itsMark,""),
+        text:text
+    } : null;
+}
+
+
+export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:JSONParseOptions = {},selfCall?:boolean):any {
+
+    let {mark = "|=|",lostRevier = LostRevier.parse} = options;
+
+    if (!mark){
+        return JSON.parse(text);
+    }
+
+    if (selfCall){
+        var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
+        var marks = mark as string[];
+        var downOpts = options;
+    }else {
+        trObj = toTypeReviverObject(typeRevivers);
+        marks = Array.isArray(mark) ? mark : [mark];
+        downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
+    }
+
+
+    function parseReviver(this: any, key: string, value: any) {
+        if (typeof value !== "string"){
+            return value;
+        }
+
+        let tvInfo = getTypeAndValue(value,marks,trObj);
+
+        if (!tvInfo){
+            return value;
+        }
+
+        let {type:typeName,value:realValue,mark:itsMark} = getTypeAndValue(value,marks,trObj) as TypeValueInfo;
+        let revier = trObj[typeName];
+
+        if (!revier){
+            switch (lostRevier) {
+                case LostRevier.ignore: return undefined;
+                case LostRevier.original:return value;
+                case LostRevier.remove:return realValue;
+                default:{
+                    return customJSONParse(value,trObj,downOpts,true);
+                }
+            }
+        }
+
+
+        let rerRes = revier.call(this,key,realValue);
 
 
 
 
+    }
+
+
+}
 
 
 
