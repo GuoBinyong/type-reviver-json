@@ -79,12 +79,33 @@ function toTypeReviverObject(typeRevivers:TypeRevivers):TypeReviverObject  {
 }
 
 
+type JSONStringifyOptions = {
+    mark?:string | null,   //类型标记
+    skipRoot?:boolean,   //是否跳过 顶层的 自定义操作
+    space?: string | number
+};
 
 
-function customJSONStringify(value: any, typeRevivers:TypeRevivers,typeMark:string = "[type]:",selfCall?:boolean):string {
-    let trObj:TypeReviverObject = selfCall ? typeRevivers as TypeReviverObject : toTypeReviverObject(typeRevivers);
+export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {},selfCall?:boolean):string {
+    if (selfCall){
+        var opts = options;
+        var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
+    }else {
+        opts = Object.assign({mark:"[type]:"},options);
+        trObj = toTypeReviverObject(typeRevivers);
+    }
+
+    let {mark,skipRoot,space} = opts;
+    let count = 0;
 
     function stringifyReviver(this: any, key: string,value: any) {
+
+        if (selfCall && ++count === 1){
+            return value;
+        }
+
+
+
         let typeStr = getExactTypeStringOf(value);
         var revier = trObj[typeStr];
         if (!revier){
@@ -97,13 +118,15 @@ function customJSONStringify(value: any, typeRevivers:TypeRevivers,typeMark:stri
             return rerRes;
         }
 
-        let rerStr:string = typeof rerRes === "string" ? rerRes : customJSONStringify(value,trObj,typeMark,true);
-        let typePrefix = typeMark.replace(/type/i,typeStr);
+        let rerStr:string = typeof rerRes === "string" ? rerRes : customJSONStringify(value,trObj,opts,true);
+        if (mark){
+            rerStr = mark.replace(/type/i,typeStr) + rerStr;
+        }
 
-        return typePrefix + rerStr;
+        return rerStr;
     }
 
-    return  JSON.stringify(value,stringifyReviver);
+    return  JSON.stringify(value,stringifyReviver,space);
 }
 
 
