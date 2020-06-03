@@ -1,7 +1,7 @@
 import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType} from "com-tools"
 
 
-type Reviver = (this: any, key: string,value: any) => any;
+type Reviver = (this: any, key: string,value: any,options:StringifyReviverOptions) => any;
 
 
 type DataType =  ExactTypeString | ExactType;
@@ -79,11 +79,23 @@ function toTypeReviverObject(typeRevivers:TypeRevivers):TypeReviverObject  {
 }
 
 
-type JSONStringifyOptions = {
-    mark?:string | null,   //类型标记
-    skipRoot?:boolean,   //是否跳过 顶层的 自定义操作
-    space?: string | number
+
+
+interface StringifyReviverOptions {
+    mark?:string | null;   //类型标记
+    skip?:boolean;
+    skipMark?:boolean;
+    skipRootMark?:boolean;   //是否跳过 顶层的 标记
 };
+
+
+
+interface JSONStringifyOptions extends StringifyReviverOptions{
+    skipRoot?:boolean;   //是否跳过 顶层的 自定义操作
+    space?: string | number;
+}
+
+
 
 
 export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {},selfCall?:boolean):string {
@@ -95,15 +107,13 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         trObj = toTypeReviverObject(typeRevivers);
     }
 
-    let {mark,skipRoot,space} = opts;
     let count = 0;
 
-    function stringifyReviver(this: any, key: string,value: any) {
-
-        if (selfCall && ++count === 1){
+    function stringifyReviver(this: any, key: string, value: any) {
+        ++count;
+        if ((selfCall || opts.skipRoot) && count === 1){
             return value;
         }
-
 
 
         let typeStr = getExactTypeStringOf(value);
@@ -112,21 +122,34 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
             return value;
         }
 
-        let rerRes = revier.call(this,key,value);
+        let rerOpts = Object.assign({},opts);
+        let rerRes = revier.call(this,key,value,rerOpts);
 
-        if (rerRes === undefined){
+
+        if (rerOpts.skip){
+            return value;
+        }
+
+        let mark = rerOpts.mark;
+
+        /*
+        在以下任一情况下，均不会添加 mark
+        - revier 返回 undefined  :  `rerRes === undefined`
+        - mark 模板没有定义 :  `!mark`
+        - skipMark 为 true : `rerOpts.skipMark`
+        - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && !selfCall && count === 1`
+        */
+        if (rerRes === undefined || !mark || rerOpts.skipMark || (rerOpts.skipRootMark && !selfCall && count === 1)){
             return rerRes;
         }
 
         let rerStr:string = typeof rerRes === "string" ? rerRes : customJSONStringify(value,trObj,opts,true);
-        if (mark){
-            rerStr = mark.replace(/type/i,typeStr) + rerStr;
-        }
+        rerStr = mark.replace(/type/i,typeStr) + rerStr;
 
         return rerStr;
     }
 
-    return  JSON.stringify(value,stringifyReviver,space);
+    return  JSON.stringify(value,stringifyReviver,opts.space);
 }
 
 
