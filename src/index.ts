@@ -1,4 +1,6 @@
-import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType} from "com-tools";
+import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBaseType} from "com-tools";
+
+
 
 
 type Reviver = (this: any, key: string,value: any,options:StringifyReviverOptions) => any;
@@ -82,17 +84,17 @@ function toTypeReviverObject(typeRevivers:TypeRevivers):TypeReviverObject  {
 
 
 interface StringifyReviverOptions {
-    mark?:string | null;   //类型标记
     skip?:boolean;
     skipMark?:boolean;
     skipRootMark?:boolean;   //是否跳过 顶层的 标记
-};
+}
 
 
 
 interface JSONStringifyOptions extends StringifyReviverOptions{
     skipRoot?:boolean;   //是否跳过 顶层的 自定义操作
     space?: string | number;
+    mark?:string;   //类型标记
 }
 
 
@@ -100,20 +102,21 @@ interface JSONStringifyOptions extends StringifyReviverOptions{
 
 
 
-export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {},selfCall?:boolean):string {
-    if (selfCall){
-        var opts = options;
-        var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
-    }else {
-        opts = Object.assign({mark:"|=|"},options);
-        trObj = toTypeReviverObject(typeRevivers);
-    }
+export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {}):string {
+    let opts = Object.assign({},options);
+    let mark = opts.mark as string;
+    mark = opts.mark = mark == null ? "|=|" : mark;
 
-    let count = 0;
+    let trObj = toTypeReviverObject(typeRevivers);
+
+    let count = 0;  // stringifyReviver 的调用次数
 
     function stringifyReviver(this: any, key: string, value: any) {
         ++count;
-        if ((selfCall || opts.skipRoot) && count === 1){
+
+        let isMarked = value != null && value[mark];  // value 是被标记的数据，表示已经处理过了，不用再处理了
+        let needSkip = opts.skipRoot && count === 1;   //需要跳过这次处理
+        if (isMarked || needSkip){
             return value;
         }
 
@@ -125,30 +128,48 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         }
 
         let rerOpts = Object.assign({},opts);
-        let rerRes = revier.call(this,key,value,rerOpts);
+        let rerRes = revier.call(this,key,value,rerOpts); //需要放在
 
 
-        if (rerOpts.skip){
+        if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
             return value;
         }
 
-        let mark = rerOpts.mark;
 
         /*
         在以下任一情况下，均不会添加 mark
         - revier 返回 undefined  :  `rerRes === undefined`
-        - mark 没有定义 :  `!mark`
         - skipMark 为 true : `rerOpts.skipMark`
-        - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && !selfCall && count === 1`
+        - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && count === 1`
         */
-        if (rerRes === undefined || !mark || rerOpts.skipMark || (rerOpts.skipRootMark && !selfCall && count === 1)){
+        if (rerRes === undefined || rerOpts.skipMark || (rerOpts.skipRootMark && count === 1)){
             return rerRes;
         }
 
-        let rerStr:string = typeof rerRes === "string" ? rerRes : customJSONStringify(value,trObj,opts,true);
-        rerStr = typeStr + mark + rerStr;
+        if  (isBaseType(rerRes)){
+            return JSON.stringify({
+                [mark]:true,
+                type:typeStr,
+                value:rerRes
+            });
+        }
 
-        return rerStr;
+        let markPropDes = {
+            configurable:true,
+            writable:true,
+            enumerable: false,
+            value:true
+        };
+
+        Object.defineProperty(rerRes,mark,markPropDes);
+
+
+        let packData = [mark,typeStr,rerRes];
+        Object.defineProperty(packData,mark,markPropDes);
+
+        return packData;
+
+
     }
 
     return  JSON.stringify(value,stringifyReviver,opts.space);
