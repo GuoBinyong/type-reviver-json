@@ -96,12 +96,17 @@ export interface StringifyReviverOptions {
     skipRootMark?:boolean;   //是否跳过 顶层的 标记
 }
 
+/**
+ * 需要禁止使用默认JSON序列化的类型；即禁止调用 toJSON 的类型；
+ */
+export type TypesOfDisableDefault = Function[] | Function;
 
 
 export interface JSONStringifyOptions extends StringifyReviverOptions{
     skipRoot?:boolean;   //是否跳过 顶层的 自定义操作
     space?: string | number;
     mark?:string;   //类型标记
+    disDefault?:TypesOfDisableDefault;  //需要禁止使用默认JSON序列化的类型；
 }
 
 /**
@@ -117,80 +122,108 @@ const _defaultMark = "__MarKOfCustomJSON__";
  * @param options:JSONStringifyOptions    选项
  */
 export function customJSONStringify(value: any, typeRevivers?:TypeRevivers<StringifyReviver|ParseReviver|SPReviver>|null,options:JSONStringifyOptions = {}):string {
-    if  (!typeRevivers){
-        return  JSON.stringify(value,null,options.space);
+
+    let disDefault = options.disDefault;
+
+    //禁用toJSON
+    if (disDefault){
+        var disTypes = Array.isArray(disDefault) ? disDefault : [disDefault];
+        var disTypeInfos:{ type:Function, name:string, toJSON?:Function }[] | undefined = disTypes.map(function (fun) {
+            let toJSON = fun.prototype.toJSON;
+            fun.prototype.toJSON = undefined;
+
+            return {
+                type:fun,
+                name:fun.name,
+                toJSON:toJSON
+            };
+        });
     }
 
-    let opts = Object.assign({},options);
-    let mark = opts.mark as string;
-    mark = opts.mark = mark == null ? _defaultMark : mark;
+    if (typeRevivers){
 
-    let trObj = toTypeReviverObject(typeRevivers as TypeRevivers<StringifyReviver>);
+        let opts = Object.assign({},options);
+        let mark = opts.mark as string;
+        mark = opts.mark = mark == null ? _defaultMark : mark;
 
-    let count = 0;  // stringifyReviver 的调用次数
+        let trObj = toTypeReviverObject(typeRevivers as TypeRevivers<StringifyReviver>);
 
-    function stringifyReviver(this: any, key: string, value: any) {
-        ++count;
+        let count = 0;  // stringifyReviver 的调用次数
 
-        let isMarked = value != null && value[mark];  // value 是被标记的数据，表示已经处理过了，不用再处理了
-        let needSkip = opts.skipRoot && count === 1;   //需要跳过这次处理
-        if (isMarked || needSkip){
-            return value;
-        }
+        let stringifyReviver = function (this: any, key: string, value: any) {
+            ++count;
 
-
-        let typeStr = getExactTypeStringOf(value);
-        let revier = trObj[typeStr];
-        if (!revier){
-            return value;
-        }
-
-        let rerOpts = Object.assign({},opts);
-        let rerRes = revier.call(this,key,value,typeStr,rerOpts); //需要放在
+            let isMarked = value != null && value[mark];  // value 是被标记的数据，表示已经处理过了，不用再处理了
+            let needSkip = opts.skipRoot && count === 1;   //需要跳过这次处理
+            if (isMarked || needSkip){
+                return value;
+            }
 
 
-        if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
-            return value;
-        }
+            let typeStr = getExactTypeStringOf(value);
+            let revier = trObj[typeStr];
+            if (!revier){
+                return value;
+            }
+
+            let rerOpts = Object.assign({},opts);
+            let rerRes = revier.call(this,key,value,typeStr,rerOpts); //需要放在
 
 
-        /*
-        在以下任一情况下，均不会添加 mark
-        - revier 返回 undefined  :  `rerRes === undefined`
-        - skipMark 为 true : `rerOpts.skipMark`
-        - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && count === 1`
-        */
-        if (rerRes === undefined || rerOpts.skipMark || (rerOpts.skipRootMark && count === 1)){
-            return rerRes;
-        }
+            if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
+                return value;
+            }
 
-        if  (isBaseType(rerRes)){
-            return JSON.stringify({
-                [mark]:true,
-                type:typeStr,
-                value:rerRes
-            });
-        }
 
-        let markPropDes = {
-            configurable:true,
-            writable:true,
-            enumerable: false,
-            value:true
+            /*
+            在以下任一情况下，均不会添加 mark
+            - revier 返回 undefined  :  `rerRes === undefined`
+            - skipMark 为 true : `rerOpts.skipMark`
+            - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && count === 1`
+            */
+            if (rerRes === undefined || rerOpts.skipMark || (rerOpts.skipRootMark && count === 1)){
+                return rerRes;
+            }
+
+            if  (isBaseType(rerRes)){
+                return JSON.stringify({
+                    [mark]:true,
+                    type:typeStr,
+                    value:rerRes
+                });
+            }
+
+            let markPropDes = {
+                configurable:true,
+                writable:true,
+                enumerable: false,
+                value:true
+            };
+
+            Object.defineProperty(rerRes,mark,markPropDes);
+
+
+            let packData = [rerRes,typeStr,mark];
+            Object.defineProperty(packData,mark,markPropDes);
+
+            return packData;
+
+
         };
 
-        Object.defineProperty(rerRes,mark,markPropDes);
-
-
-        let packData = [rerRes,typeStr,mark];
-        Object.defineProperty(packData,mark,markPropDes);
-
-        return packData;
-
-
+        var jsonStr =  JSON.stringify(value,stringifyReviver,opts.space);
+    }else {
+        jsonStr = JSON.stringify(value,null,options.space);
     }
 
-    return  JSON.stringify(value,stringifyReviver,opts.space);
+    //取消禁用toJSON
+    if (disTypeInfos){
+        disTypeInfos.forEach(function (funInfo) {
+            funInfo.type.prototype.toJSON = funInfo.toJSON;
+        });
+    }
+
+    return jsonStr;
 }
 
 
