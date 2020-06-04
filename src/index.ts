@@ -45,7 +45,7 @@ export type TypeRevivers<Reviver> = TypeReviverArray<Reviver> | TypeReviverObjec
  * 将 typeRevivers 转成 TypeReviverArray
  * @param typeRevivers
  */
-function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverArray<Reviver> {
+export function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverArray<Reviver> {
 
     switch (typeRevivers.constructor.name) {
         case "Map":{
@@ -67,7 +67,7 @@ function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeRev
 
 
 
-function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
+export function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
     let typeReviverArr = toTypeReviverArray(typeRevivers);
 
     let typeStrReviverArr:TypeStringReviverArray<Reviver> = typeReviverArr.reduce(function (flatArr:TypeStringReviverArray<Reviver>,typeReviver) {
@@ -85,6 +85,25 @@ function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeRe
     },[]);
 
     return  Object.fromEntries(typeStrReviverArr);
+}
+
+export function toTypeReviverMap<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverMap<Reviver> {
+
+    switch (typeRevivers.constructor.name) {
+        case "Map":{
+            var typeRevMap = typeRevivers as TypeReviverMap<Reviver>;
+            break;
+        }
+        case "Array":{
+            typeRevMap = new Map(typeRevivers as TypeReviverArray<Reviver>);
+            break;
+        }
+        default:{
+            typeRevMap = new Map(Object.entries(typeRevivers));
+        }
+    }
+
+    return typeRevMap;
 }
 
 
