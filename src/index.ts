@@ -2,51 +2,53 @@ import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBase
 
 
 
-
-type Reviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions|undefined) => any;
-
-
-type DataType =  ExactTypeString | ExactType;
-type DataTypeArray = DataType[];
-type Types = DataType | DataTypeArray;
+export type StringifyReviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions) => any;
+export type ParseReviver = (this: any, key: string,value: any,type:string) => any;
+export type SPReviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions|undefined) => any;
 
 
-type TypeReviverArray = [Types,Reviver][];
+export type DataType =  ExactTypeString | ExactType;
+export type DataTypeArray = DataType[];
+export type Types = DataType | DataTypeArray;
 
-type TypeStringReviverArray = [ExactTypeString,Reviver][];
+
+export type TypeReviverArray<Reviver> = [Types,Reviver][];
+
+export type TypeStringReviverArray<Reviver> = [ExactTypeString,Reviver][];
 
 
 /**
  * 扁平化的 TypeReviverArray
  */
-type TypeReviverFlatArray = [DataType,Reviver][];
+export type TypeReviverFlatArray<Reviver> = [DataType,Reviver][];
 
-type TypeReviverObject = {
-    [typeName:string]:Reviver
-};
-type TypeReviverMap = Map<Types,Reviver>;
+export interface TypeReviverObject<Reviver> {
+    [typeName:string]:Reviver;
+}
+
+export type TypeReviverMap<Reviver> = Map<Types,Reviver>;
 
 /**
  * 扁平化的 TypeReviverMap
  */
-type TypeReviverFlatMap = Map<DataType,Reviver>;
+export type TypeReviverFlatMap<Reviver> = Map<DataType,Reviver>;
 
-type TypeRevivers = TypeReviverArray | TypeReviverObject | TypeReviverMap;
+export type TypeRevivers<Reviver> = TypeReviverArray<Reviver> | TypeReviverObject<Reviver> | TypeReviverMap<Reviver>;
 
 
 /**
  * 将 typeRevivers 转成 TypeReviverArray
  * @param typeRevivers
  */
-function toTypeReviverArray(typeRevivers:TypeRevivers):TypeReviverArray {
+function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverArray<Reviver> {
 
     switch (typeRevivers.constructor.name) {
         case "Map":{
-            var typeRevArr = Array.from(typeRevivers as TypeReviverMap);
+            var typeRevArr = Array.from(typeRevivers as TypeReviverMap<Reviver>);
             break;
         }
         case "Array":{
-            typeRevArr = typeRevivers as TypeReviverArray;
+            typeRevArr = typeRevivers as TypeReviverArray<Reviver>;
             break;
         }
         default:{
@@ -60,10 +62,10 @@ function toTypeReviverArray(typeRevivers:TypeRevivers):TypeReviverArray {
 
 
 
-function toTypeReviverObject(typeRevivers:TypeRevivers):TypeReviverObject  {
+function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
     let typeReviverArr = toTypeReviverArray(typeRevivers);
 
-    let typeStrReviverArr:TypeStringReviverArray = typeReviverArr.reduce(function (flatArr:TypeStringReviverArray,typeReviver) {
+    let typeStrReviverArr:TypeStringReviverArray<Reviver> = typeReviverArr.reduce(function (flatArr:TypeStringReviverArray<Reviver>,typeReviver) {
         let types = typeReviver[0];
         let reviver = typeReviver[1];
 
@@ -83,7 +85,7 @@ function toTypeReviverObject(typeRevivers:TypeRevivers):TypeReviverObject  {
 
 
 
-interface StringifyReviverOptions {
+export interface StringifyReviverOptions {
     skip?:boolean;
     skipMark?:boolean;
     skipRootMark?:boolean;   //是否跳过 顶层的 标记
@@ -91,7 +93,7 @@ interface StringifyReviverOptions {
 
 
 
-interface JSONStringifyOptions extends StringifyReviverOptions{
+export interface JSONStringifyOptions extends StringifyReviverOptions{
     skipRoot?:boolean;   //是否跳过 顶层的 自定义操作
     space?: string | number;
     mark?:string;   //类型标记
@@ -109,7 +111,7 @@ const _defaultMark = "__MarKOfCustomJSON__";
  * @param typeRevivers?:TypeRevivers|null    定义 类型 与 其对类的 自定义序列化函数；
  * @param options:JSONStringifyOptions    选项
  */
-export function customJSONStringify(value: any, typeRevivers?:TypeRevivers|null,options:JSONStringifyOptions = {}):string {
+export function customJSONStringify(value: any, typeRevivers?:TypeRevivers<StringifyReviver>|null,options:JSONStringifyOptions = {}):string {
     if  (!typeRevivers){
         return  JSON.stringify(value,null,options.space);
     }
@@ -196,7 +198,7 @@ export enum LostRevier {
 
 
 
-interface JSONParseOptions {
+export interface JSONParseOptions {
     mark?:string | string[] | null;   //类型标记
     lostRevier?:LostRevier;   //当找不到 Revier 时，如何处理
 }
@@ -208,7 +210,7 @@ interface JSONParseOptions {
  * @param typeRevivers
  * @param options
  */
-export function customJSONParse(text: string, typeRevivers?:TypeRevivers|null,options:JSONParseOptions = {}):any {
+export function customJSONParse(text: string, typeRevivers?:TypeRevivers<ParseReviver>|null,options:JSONParseOptions = {}):any {
 
     let {mark = _defaultMark,lostRevier = LostRevier.parse} = options;
 
@@ -216,7 +218,7 @@ export function customJSONParse(text: string, typeRevivers?:TypeRevivers|null,op
         return JSON.parse(text);
     }
 
-    var trObj:TypeReviverObject = typeRevivers ? toTypeReviverObject(typeRevivers) : {};
+    var trObj = typeRevivers ? toTypeReviverObject(typeRevivers) : {};
     var marks = Array.isArray(mark) ? mark : [mark];
 
 
@@ -254,7 +256,7 @@ export function customJSONParse(text: string, typeRevivers?:TypeRevivers|null,op
             }
         }
 
-        return revier.call(this,key,realValue,typeName,undefined);
+        return revier.call(this,key,realValue,typeName);
 
     }
 
