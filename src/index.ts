@@ -97,15 +97,26 @@ interface JSONStringifyOptions extends StringifyReviverOptions{
     mark?:string;   //类型标记
 }
 
+/**
+ * 默认的 Mark 值
+ */
+const _defaultMark = "__MarKOfCustomJSON__";
 
 
+/**
+ * 自定义JSON序列化；可根据数据类型来自定义序列化方案； 给合  customJSONParse  可实现对任意类型的数据 进行序列化 并完整（无信息丢失）还原；
+ * @param value: any   被序列化的对象
+ * @param typeRevivers?:TypeRevivers|null    定义 类型 与 其对类的 自定义序列化函数；
+ * @param options:JSONStringifyOptions    选项
+ */
+export function customJSONStringify(value: any, typeRevivers?:TypeRevivers|null,options:JSONStringifyOptions = {}):string {
+    if  (!typeRevivers){
+        return  JSON.stringify(value,null,options.space);
+    }
 
-
-
-export function customJSONStringify(value: any, typeRevivers:TypeRevivers,options:JSONStringifyOptions = {}):string {
     let opts = Object.assign({},options);
     let mark = opts.mark as string;
-    mark = opts.mark = mark == null ? "|=|" : mark;
+    mark = opts.mark = mark == null ? _defaultMark : mark;
 
     let trObj = toTypeReviverObject(typeRevivers);
 
@@ -164,7 +175,7 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         Object.defineProperty(rerRes,mark,markPropDes);
 
 
-        let packData = [mark,typeStr,rerRes];
+        let packData = [rerRes,typeStr,mark];
         Object.defineProperty(packData,mark,markPropDes);
 
         return packData;
@@ -191,30 +202,22 @@ interface JSONParseOptions {
 }
 
 
+/**
+ * 自定义JSON解析；可根据类型自定义解析逻辑；
+ * @param text
+ * @param typeRevivers
+ * @param options
+ */
+export function customJSONParse(text: string, typeRevivers?:TypeRevivers|null,options:JSONParseOptions = {}):any {
 
-
-
-export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:JSONParseOptions = {}):any {
-
-    let {mark = "|=|",lostRevier = LostRevier.parse} = options;
+    let {mark = _defaultMark,lostRevier = LostRevier.parse} = options;
 
     if (mark == null){
         return JSON.parse(text);
     }
 
-    var trObj = toTypeReviverObject(typeRevivers);
+    var trObj:TypeReviverObject = typeRevivers ? toTypeReviverObject(typeRevivers) : {};
     var marks = Array.isArray(mark) ? mark : [mark];
-    // var downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
-
-    // if (selfCall){
-    //     // var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
-    //     // var marks = mark as string[];
-    //     // var downOpts = options;
-    // }else {
-    //     trObj = toTypeReviverObject(typeRevivers);
-    //     marks = Array.isArray(mark) ? mark : [mark];
-    //     downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
-    // }
 
 
     function parseReviver(this: any, key: string, value: any) {
@@ -224,10 +227,10 @@ export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:
 
 
         if (Array.isArray(value)){
-            var isMarked = value.length === 3 && marks.includes(value[0]);
+            var isMarked = value.length === 3 && marks.includes(value[2]);
             if (isMarked){
+                var realValue = value[0];
                 var typeName = value[1];
-                var realValue = value[2];
             }
         }else {
             typeName = value["type"];
@@ -251,12 +254,9 @@ export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:
             }
         }
 
-
-        // let rerRes = revier.call(this,key,realValue,typeName);
-
         return revier.call(this,key,realValue,typeName,undefined);
 
     }
 
-
+    return JSON.parse(text,parseReviver);
 }
