@@ -19,7 +19,8 @@ export type Types = DataType | DataTypeArray;
 
 export type TypeReviverArray<Reviver> = [Types,Reviver][];
 
-export type TypeStringReviverArray<Reviver> = [ExactTypeString,Reviver][];
+export type TypeStringReviverArray<Reviver> = [ExactTypeString | ExactTypeString[],Reviver][];
+export type TypeStringReviverFlatArray<Reviver> = [ExactTypeString,Reviver][];
 
 
 /**
@@ -66,11 +67,10 @@ export function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):
 
 
 
-
-export function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
+export function toTypeStringReviverFlatArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeStringReviverFlatArray<Reviver>  {
     let typeReviverArr = toTypeReviverArray(typeRevivers);
 
-    let typeStrReviverArr:TypeStringReviverArray<Reviver> = typeReviverArr.reduce(function (flatArr:TypeStringReviverArray<Reviver>,typeReviver) {
+    return  typeReviverArr.reduce(function (flatArr:TypeStringReviverFlatArray<Reviver>,typeReviver) {
         let types = typeReviver[0];
         let reviver = typeReviver[1];
 
@@ -84,8 +84,15 @@ export function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>)
 
     },[]);
 
+}
+
+
+
+export function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
+    let typeStrReviverArr = toTypeStringReviverFlatArray(typeRevivers);
     return  Object.fromEntries(typeStrReviverArr);
 }
+
 
 export function toTypeReviverMap<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverMap<Reviver> {
 

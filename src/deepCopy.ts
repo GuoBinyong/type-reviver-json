@@ -7,13 +7,20 @@ import {
     TypesOfDisableDefault,
     customJSONStringify,
     customJSONParse,
-    DataType, TypeReviverArray, TypeReviverMap, TypeReviverObject, TypeStringReviverArray, DataTypeArray
+    DataType,
+    TypeReviverArray,
+    TypeReviverMap,
+    TypeReviverObject,
+    TypeStringReviverArray,
+    DataTypeArray,
+    toTypeStringReviverFlatArray,
+    TypeStringReviverFlatArray
 } from "./index"
 import {ExactTypeString, getStringOfType, isBaseType} from "com-tools"
 
 
 
-export interface TypeReviversOptions {
+export interface TypeReviversPair {
     string?:TypeRevivers<StringifyReviver>;
     parse?:TypeRevivers<ParseReviver>;
 }
@@ -24,7 +31,7 @@ export interface TypeReviversOptions {
  * StringParseTypeRevivers 的类型守卫
  * @param target
  */
-export function isTypeReviversOptions(target:any):target is TypeReviversOptions  {
+export function isTypeReviversPair(target:any):target is TypeReviversPair  {
     return target && typeof target === "object" && !Array.isArray(target) && (target.string || target.parse)
 }
 
@@ -36,110 +43,14 @@ export interface ReviverPair {
 }
 
 
-
-export type TypeReviverPairArray = [Types,ReviverPair][];
-
-export type TypeStringReviverPairArray = [ExactTypeString,ReviverPair][];
-
-
-/**
- * 扁平化的 TypeReviverPairArray
- */
-export type TypeReviverPairFlatArray = [DataType,ReviverPair][];
-
-export interface TypeReviverPairObject {
-    [typeName:string]:ReviverPair;
-}
-
-export type TypeReviverPairMap = Map<Types,ReviverPair>;
-
-/**
- * 扁平化的 TypeReviverMap
- */
-export type TypeReviverPairFlatMap = Map<DataType,ReviverPair>;
-
-export type TypeReviverPairs = TypeReviverPairArray | TypeReviverPairObject | TypeReviverPairMap;
-
-
-
-
-export type DeepCopyTypeRevivers = TypeReviversOptions | TypeReviverPairs;
-
-
-
-/**
- * 将 typeRevivers 转成 TypeReviverArray
- * @param typeRevivers
- */
-export function toTypeReviverPairArray(typeReviverPairs:TypeReviverPairs):TypeReviverPairArray {
-
-    switch (typeReviverPairs.constructor.name) {
-        case "Map":{
-            var trPairArr = Array.from(typeReviverPairs as TypeReviverPairMap);
-            break;
-        }
-        case "Array":{
-            trPairArr = typeReviverPairs as TypeReviverPairArray;
-            break;
-        }
-        default:{
-            trPairArr = Object.entries(typeReviverPairs);
-        }
-    }
-
-    return trPairArr;
-}
-
-
-
-
-export function toTypeReviverPairObject(typeReviverPairs:TypeReviverPairs):TypeReviverPairObject  {
-    let trPairArr = toTypeReviverPairArray(typeReviverPairs);
-
-    let typeStrRevPairArr:TypeStringReviverPairArray = trPairArr.reduce(function (flatArr:TypeStringReviverPairArray,typeReviverPair) {
-        let types = typeReviverPair[0];
-        let reviverPair = typeReviverPair[1];
-
-        let typeArr:DataTypeArray = Array.isArray(types) ? types : [types];
-
-        typeArr.forEach(function (dataType) {
-            flatArr.push([typeof dataType === "string" ? dataType : getStringOfType(dataType),reviverPair]);
-        });
-
-        return flatArr;
-
-    },[]);
-
-    return  Object.fromEntries(typeStrRevPairArr);
-}
-
-export function toTypeReviverMap<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverMap<Reviver> {
-
-    switch (typeRevivers.constructor.name) {
-        case "Map":{
-            var typeRevMap = typeRevivers as TypeReviverMap<Reviver>;
-            break;
-        }
-        case "Array":{
-            typeRevMap = new Map(typeRevivers as TypeReviverArray<Reviver>);
-            break;
-        }
-        default:{
-            typeRevMap = new Map(Object.entries(typeRevivers));
-        }
-    }
-
-    return typeRevMap;
-}
-
-
+export type TypeReviverPairs = TypeRevivers<ReviverPair> | TypeReviversPair
 
 
 
 
 
 interface deepCopyByJSON {
-
+    defaultTypeReviverPairs:TypeRevivers<ReviverPair>
 }
 
 
@@ -150,17 +61,25 @@ interface deepCopyByJSON {
  * @param value
  * @param dcTypeRevivers
  */
-function deepCopyByJSON(value:any,dcTypeRevivers?:DeepCopyTypeRevivers,typesOfDisDefault?:TypesOfDisableDefault) {
+function deepCopyByJSON(value:any,dcTypeRevivers?:TypeReviverPairs,typesOfDisDefault?:TypesOfDisableDefault) {
     if (isBaseType(value)){
         return value;
     }
 
-    let strTypeRevivers = dcTypeRevivers as TypeRevivers<StringifyReviver> | undefined;
-    let parseTypeRevivers = dcTypeRevivers as TypeRevivers<ParseReviver> | undefined;
 
-    if (isTypeReviversOptions(dcTypeRevivers)){
-        strTypeRevivers = dcTypeRevivers.string;
-        parseTypeRevivers = dcTypeRevivers.parse;
+    if (isTypeReviversPair(dcTypeRevivers)){
+        var strTypeRevivers = dcTypeRevivers.string;
+        var parseTypeRevivers = dcTypeRevivers.parse;
+    }else {
+        strTypeRevivers = [];
+        parseTypeRevivers = [] as TypeStringReviverFlatArray<ParseReviver>;
+        let typeStrRevFlatArr = toTypeStringReviverFlatArray(dcTypeRevivers as TypeRevivers<ReviverPair>);
+        typeStrRevFlatArr.forEach(function (tsrPair) {
+            let typeName = tsrPair[0];
+            let rPair = tsrPair[1];
+            (<TypeStringReviverFlatArray<StringifyReviver>>strTypeRevivers).push([typeName,rPair.string]);
+            (<TypeStringReviverFlatArray<ParseReviver>>parseTypeRevivers).push([typeName,rPair.parse]);
+        });
     }
 
     var str = customJSONStringify(value,strTypeRevivers,{disDefault:typesOfDisDefault});
