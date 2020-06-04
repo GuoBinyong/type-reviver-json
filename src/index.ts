@@ -3,7 +3,7 @@ import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBase
 
 
 
-type Reviver = (this: any, key: string,value: any,options:StringifyReviverOptions) => any;
+type Reviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions|undefined) => any;
 
 
 type DataType =  ExactTypeString | ExactType;
@@ -128,7 +128,7 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
         }
 
         let rerOpts = Object.assign({},opts);
-        let rerRes = revier.call(this,key,value,rerOpts); //需要放在
+        let rerRes = revier.call(this,key,value,typeStr,rerOpts); //需要放在
 
 
         if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
@@ -179,7 +179,6 @@ export function customJSONStringify(value: any, typeRevivers:TypeRevivers,option
 
 export enum LostRevier {
     original="original",
-    remove = "remove",
     parse = "parse",
     ignore = "ignore"
 }
@@ -193,182 +192,71 @@ interface JSONParseOptions {
 
 
 
-//类型名字的正则
-var typeNameRegExp = /^[$\w]+$/;
-
-/**
- * 类型 和 值 的 信息
- */
-interface TypeValueInfo {
-    mark:string;
-    type:string;
-    value:string;
-    text:string;
-}
-
-function getTypeAndValue(text:string,marks:(string|null)[],typeRevivers:TypeReviverObject): TypeValueInfo | null {
-    let typeName!:string;
-    let itsMark = marks.find(function (markStr) {
-        if (!markStr){
-            return false
-        }
-
-        let index = text.indexOf(markStr);
-        if (index < 0){
-            return false;
-        }
-
-        let typeStr = text.substring(0,index);
-        if (typeNameRegExp.test(typeStr)){
-            typeName = typeStr;
-            return true
-        }
-    });
-
-    if (!itsMark){
-        return null;
-    }
-
-    return itsMark ? {
-        mark:itsMark,
-        type:typeName,
-        value:text.replace(typeName + itsMark,""),
-        text:text
-    } : null;
-}
 
 
-export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:JSONParseOptions = {},selfCall?:boolean):any {
+export function customJSONParse(text: string, typeRevivers:TypeRevivers,options:JSONParseOptions = {}):any {
 
     let {mark = "|=|",lostRevier = LostRevier.parse} = options;
 
-    if (!mark){
+    if (mark == null){
         return JSON.parse(text);
     }
 
-    if (selfCall){
-        var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
-        var marks = mark as string[];
-        var downOpts = options;
-    }else {
-        trObj = toTypeReviverObject(typeRevivers);
-        marks = Array.isArray(mark) ? mark : [mark];
-        downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
-    }
+    var trObj = toTypeReviverObject(typeRevivers);
+    var marks = Array.isArray(mark) ? mark : [mark];
+    // var downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
+
+    // if (selfCall){
+    //     // var trObj:TypeReviverObject = typeRevivers as TypeReviverObject
+    //     // var marks = mark as string[];
+    //     // var downOpts = options;
+    // }else {
+    //     trObj = toTypeReviverObject(typeRevivers);
+    //     marks = Array.isArray(mark) ? mark : [mark];
+    //     downOpts = Object.assign({},options,{mark:marks,lostRevier:lostRevier});
+    // }
 
 
     function parseReviver(this: any, key: string, value: any) {
-        if (typeof value !== "string"){
+        if (isBaseType(value)){
             return value;
         }
 
-        let tvInfo = getTypeAndValue(value,marks,trObj);
 
-        if (!tvInfo){
+        if (Array.isArray(value)){
+            var isMarked = value.length === 3 && marks.includes(value[0]);
+            if (isMarked){
+                var typeName = value[1];
+                var realValue = value[2];
+            }
+        }else {
+            typeName = value["type"];
+            isMarked = typeName && marks.some(function (markStr) {return value[markStr]});
+            if (isMarked){
+                realValue = value["value"];
+            }
+        }
+
+        if (!isMarked){
             return value;
         }
 
-        let {type:typeName,value:realValue,mark:itsMark} = getTypeAndValue(value,marks,trObj) as TypeValueInfo;
         let revier = trObj[typeName];
 
         if (!revier){
             switch (lostRevier) {
                 case LostRevier.ignore: return undefined;
                 case LostRevier.original:return value;
-                case LostRevier.remove:return realValue;
-                default:{
-                    return customJSONParse(value,trObj,downOpts,true);
-                }
+                default: return realValue;
             }
         }
 
 
-        let rerRes = revier.call(this,key,realValue);
+        // let rerRes = revier.call(this,key,realValue,typeName);
 
-
-
+        return revier.call(this,key,realValue,typeName,undefined);
 
     }
 
 
-}
-
-
-
-
-
-//用不到的工具-----------------
-
-
-
-
-/**
- * 将 typeRevivers 转成 TypeReviverMap
- * @param typeRevivers
- */
-function toTypeReviverMap(typeRevivers:TypeRevivers):TypeReviverMap {
-    switch (typeRevivers.constructor.name) {
-        case "Map":{
-            var typeRevMap = typeRevivers as TypeReviverMap;
-            break;
-        }
-        case "Array":{
-            typeRevMap = new Map(typeRevivers as TypeReviverArray);
-            break;
-        }
-        default:{
-            typeRevMap = new Map(Object.entries(typeRevivers));
-        }
-    }
-
-    return typeRevMap;
-}
-
-
-
-
-/**
- * 扁平化 并扩展 TypeReviverArray
- * 扁平化 会把 TypeReviverArray 中 [DataTypeArray,Reviver] 映射关系 改成  多个 [DataType,Reviver] 的映射关系
- * 扩展 会把 给 TypeReviverArray 增给第个 TypeReviver 增加一个对应  [DataType的名字,Reviver]，DataType的名字 就是 DataType 的字符串表示
- * @param TypeReviverFlatArray
- */
-function flatExtendTypeReviverArray(typeReviverArr:TypeReviverArray):TypeReviverFlatArray {
-    return  typeReviverArr.reduce(function (flatArr:TypeReviverFlatArray,typeReviver) {
-        let types = typeReviver[0];
-        let reviver = typeReviver[1];
-
-        let typeArr:DataTypeArray = Array.isArray(types) ? types : [types];
-
-        typeArr.forEach(function (dataType) {
-            flatArr.push([dataType,reviver]);
-            if (typeof dataType !== "string"){
-                let typeStr = getStringOfType(dataType);
-                flatArr.push([typeStr,reviver])
-            }
-        });
-
-        return flatArr;
-
-    },[] as TypeReviverFlatArray);
-}
-
-
-/**
- * 扁平化 并扩展 TypeRevivers
- * @param typeRevivers
- */
-function flatExtendTypeRevivers(typeRevivers:TypeRevivers):TypeReviverFlatArray {
-    let trArr = toTypeReviverArray(typeRevivers);
-    return flatExtendTypeReviverArray(trArr);
-}
-
-
-/**
- * 将 typeRevivers 扁平化并扩展成 TypeReviverFlatMap
- * @param typeRevivers
- */
-function flatExtendToTypeReviverFlatMap(typeRevivers:TypeRevivers):TypeReviverFlatMap {
-    let flatArr = flatExtendTypeRevivers(typeRevivers);
-    return  new Map(flatArr);
 }
