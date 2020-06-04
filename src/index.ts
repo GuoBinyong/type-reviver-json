@@ -2,8 +2,13 @@ import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBase
 
 
 
+// customJSONStringify 专用的 Reviver
 export type StringifyReviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions) => any;
+
+// customJSONParse 专用的 Reviver
 export type ParseReviver = (this: any, key: string,value: any,type:string) => any;
+
+// customJSONStringify 和 customJSONParse 都可用的 Reviver
 export type SPReviver = (this: any, key: string,value: any,type:string ,stringifyOptions:StringifyReviverOptions|undefined) => any;
 
 
@@ -111,7 +116,7 @@ const _defaultMark = "__MarKOfCustomJSON__";
  * @param typeRevivers?:TypeRevivers|null    定义 类型 与 其对类的 自定义序列化函数；
  * @param options:JSONStringifyOptions    选项
  */
-export function customJSONStringify(value: any, typeRevivers?:TypeRevivers<StringifyReviver>|null,options:JSONStringifyOptions = {}):string {
+export function customJSONStringify(value: any, typeRevivers?:TypeRevivers<StringifyReviver|ParseReviver|SPReviver>|null,options:JSONStringifyOptions = {}):string {
     if  (!typeRevivers){
         return  JSON.stringify(value,null,options.space);
     }
@@ -120,7 +125,7 @@ export function customJSONStringify(value: any, typeRevivers?:TypeRevivers<Strin
     let mark = opts.mark as string;
     mark = opts.mark = mark == null ? _defaultMark : mark;
 
-    let trObj = toTypeReviverObject(typeRevivers);
+    let trObj = toTypeReviverObject(typeRevivers as TypeRevivers<StringifyReviver>);
 
     let count = 0;  // stringifyReviver 的调用次数
 
@@ -210,7 +215,7 @@ export interface JSONParseOptions {
  * @param typeRevivers
  * @param options
  */
-export function customJSONParse(text: string, typeRevivers?:TypeRevivers<ParseReviver>|null,options:JSONParseOptions = {}):any {
+export function customJSONParse(text: string, typeRevivers?:TypeRevivers<ParseReviver|StringifyReviver|SPReviver>|null,options:JSONParseOptions = {}):any {
 
     let {mark = _defaultMark,lostRevier = LostRevier.parse} = options;
 
@@ -218,7 +223,7 @@ export function customJSONParse(text: string, typeRevivers?:TypeRevivers<ParseRe
         return JSON.parse(text);
     }
 
-    var trObj = typeRevivers ? toTypeReviverObject(typeRevivers) : {};
+    var trObj = typeRevivers ? toTypeReviverObject(typeRevivers as TypeRevivers<ParseReviver>) : {};
     var marks = Array.isArray(mark) ? mark : [mark];
 
 
