@@ -3,6 +3,25 @@
 //用不到的工具-----------------
 
 
+import {DataTypeArray, TypeReviverArray, TypeReviverFlatArray} from "./index";
+
+export function typeReviverArrayToTypeReviverFlatArray<Reviver>(typeReviverArr:TypeReviverArray<Reviver>):TypeReviverFlatArray<Reviver> {
+    return  typeReviverArr.reduce(function (flatArr:TypeReviverFlatArray<Reviver>,typeReviver) {
+        let types = typeReviver[0];
+        let reviver = typeReviver[1];
+
+        let typeArr:DataTypeArray = Array.isArray(types) ? types : [types];
+
+        typeArr.forEach(function (dataType) {
+            flatArr.push([dataType ,reviver]);
+        });
+
+        return flatArr;
+
+    },[]);
+}
+
+
 
 //类型名字的正则
 import {getStringOfType} from "com-tools";
