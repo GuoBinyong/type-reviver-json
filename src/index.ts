@@ -39,7 +39,99 @@ export type TypeReviverMap<Reviver> = Map<Types,Reviver>;
  */
 export type TypeReviverFlatMap<Reviver> = Map<DataType,Reviver>;
 
+
+
+
+
+export interface TypeReviversPair {
+    string?:TypeRevivers<StringifyReviver>;
+    parse?:TypeRevivers<ParseReviver>;
+}
+
+export interface TypeReviverArrayPair {
+    string?:TypeReviverArray<StringifyReviver>;
+    parse?:TypeReviverArray<ParseReviver>;
+}
+
+
+export interface TypeReviverFlatArrayPair {
+    string?:TypeReviverFlatArray<StringifyReviver>;
+    parse?:TypeReviverFlatArray<ParseReviver>;
+}
+
+
+
+/**
+ * StringParseTypeRevivers 的类型守卫
+ * @param target
+ */
+export function isTypeReviversPair(target:any):target is TypeReviversPair  {
+    return target && typeof target === "object" && !Array.isArray(target) && (target.string || target.parse)
+}
+
+
+
+export interface ReviverPair {
+    string:StringifyReviver;
+    parse:ParseReviver;
+}
+
+//ReviverPair 的类型守卫
+function isReviverPair(target:any):target is ReviverPair {
+    return target && typeof target.string === "function" && typeof target.parse === "function"
+}
+
+
+
+
+
+
 export type TypeRevivers<Reviver> = TypeReviverArray<Reviver> | TypeReviverObject<Reviver> | TypeReviverMap<Reviver>;
+
+export type TypeReviversOptions = TypeRevivers<SPReviver | ReviverPair> | TypeReviversPair
+
+
+/**
+ * 解析 TypeReviversOptions 到 TypeReviversPair；
+ * 它会自动将 TypeRevivers<ReviverPair>  拆分成 TypeRevivers<StringifyReviver> 和 TypeRevivers<ParseReviver>
+ * @param trOpts
+ */
+export function parseTypeReviversOptions(trOpts:TypeReviversOptions):TypeReviversPair {
+    if (isTypeReviversPair(trOpts)){
+        return trOpts;
+    }
+
+    let trArr = toTypeReviverArray(trOpts);
+    let hasPair = trArr.some(function (typeReviver) {
+        return isReviverPair(typeReviver[1]);
+    });
+
+    if (hasPair){
+        var strTypeRevivers:TypeReviverArray<StringifyReviver> = [];
+        var parseTypeRevivers:TypeReviverArray<ParseReviver> = [];
+
+        trArr.forEach(function (typeReviver) {
+            let reviver = typeReviver[1];
+            if (typeof reviver === "function"){
+                strTypeRevivers.push(typeReviver as [Types,StringifyReviver]);
+                parseTypeRevivers.push(typeReviver as [Types,ParseReviver]);
+            }else {
+                let types = typeReviver[0];
+                strTypeRevivers.push([types,reviver.string]);
+                parseTypeRevivers.push([types,reviver.parse]);
+            }
+        });
+
+    }else {
+        strTypeRevivers = trArr as TypeReviverArray<StringifyReviver>;
+        parseTypeRevivers = trArr as TypeReviverArray<ParseReviver>;
+    }
+
+    return {
+        string:strTypeRevivers,
+        parse:parseTypeRevivers
+    };
+}
 
 
 /**
@@ -66,10 +158,24 @@ export function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):
 }
 
 
+export function typeReviverArrayToTypeReviverFlatArray<Reviver>(typeReviverArr:TypeReviverArray<Reviver>):TypeReviverFlatArray<Reviver> {
+    return  typeReviverArr.reduce(function (flatArr:TypeReviverFlatArray<Reviver>,typeReviver) {
+        let types = typeReviver[0];
+        let reviver = typeReviver[1];
 
-export function toTypeStringReviverFlatArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeStringReviverFlatArray<Reviver>  {
-    let typeReviverArr = toTypeReviverArray(typeRevivers);
+        let typeArr:DataTypeArray = Array.isArray(types) ? types : [types];
 
+        typeArr.forEach(function (dataType) {
+            flatArr.push([dataType ,reviver]);
+        });
+
+        return flatArr;
+
+    },[]);
+}
+
+
+export function typeReviverArrayToTypeStringReviverFlatArray<Reviver>(typeReviverArr:TypeReviverArray<Reviver>):TypeStringReviverFlatArray<Reviver> {
     return  typeReviverArr.reduce(function (flatArr:TypeStringReviverFlatArray<Reviver>,typeReviver) {
         let types = typeReviver[0];
         let reviver = typeReviver[1];
@@ -83,7 +189,13 @@ export function toTypeStringReviverFlatArray<Reviver>(typeRevivers:TypeRevivers<
         return flatArr;
 
     },[]);
+}
 
+
+
+export function toTypeStringReviverFlatArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeStringReviverFlatArray<Reviver>  {
+    let typeReviverArr = toTypeReviverArray(typeRevivers);
+    return  typeReviverArrayToTypeStringReviverFlatArray(typeReviverArr);
 }
 
 
