@@ -1,87 +1,130 @@
 import {
-    TypeRevivers,
-    Types,
-    SPReviver,
-    ParseReviver,
-    StringifyReviver,
     TypesOfDisableDefault,
     customJSONStringify,
     customJSONParse,
-    DataType,
-    TypeReviverArray,
+    TypeReviversOptions,
+    SPReviver,
+    ReviverPair,
     TypeReviverMap,
-    TypeReviverObject,
-    TypeStringReviverArray,
-    DataTypeArray,
-    toTypeStringReviverFlatArray,
-    TypeStringReviverFlatArray
+    parseTypeReviversOptions,
+    toTypeReviverArray,
+    TypeReviverArray, StringifyReviverOptions
 } from "./index"
-import {ExactTypeString, getStringOfType, isBaseType} from "com-tools"
+
+import {isBaseType} from "com-tools"
 
 
 
-export interface TypeReviversPair {
-    string?:TypeRevivers<StringifyReviver>;
-    parse?:TypeRevivers<ParseReviver>;
+
+
+
+
+
+
+
+
+export interface DeepCopyByJSON {
+    <T>(value:T,typeReviversOpts?:TypeReviversOptions|null,typesOfDisDefault?:TypesOfDisableDefault):T;
+    presetTypeReviverMap:TypeReviverMap<SPReviver | ReviverPair>;  //预置的 TypeReviverMap
 }
 
 
 
 /**
- * StringParseTypeRevivers 的类型守卫
- * @param target
+ * 创建带 presetTypeReviverMap 的 deepCopyByJSON 的工厂函数
+ * @param presetTypeReviverMap
  */
-export function isTypeReviversPair(target:any):target is TypeReviversPair  {
-    return target && typeof target === "object" && !Array.isArray(target) && (target.string || target.parse)
+export function createDeepCopyByJSONWith(presetTypeReviverMap?:TypeReviverMap<SPReviver | ReviverPair>):DeepCopyByJSON {
+
+    /**
+     * 通过 自定义 JSON 序列人的方式 对 value 进行 深拷贝
+     * @param value
+     * @param dcTypeRevivers
+     */
+    let deepCopyByJSON:DeepCopyByJSON = function <T>(value:T,typeReviversOpts?:TypeReviversOptions|null,typesOfDisDefault?:TypesOfDisableDefault):T {
+        if (isBaseType(value)){
+            return value;
+        }
+
+        let preTRArr = toTypeReviverArray(deepCopyByJSON.presetTypeReviverMap);
+
+        let strAllTRArr:TypeReviverArray<SPReviver | ReviverPair> = preTRArr.slice();
+        let parseAllTRArr:TypeReviverArray<SPReviver | ReviverPair> = preTRArr.slice();
+
+        if (typeReviversOpts){
+            let trsPair = parseTypeReviversOptions(typeReviversOpts);
+            let strTRs = trsPair.string;
+            let parseTRs = trsPair.parse;
+
+            if (strTRs){
+                let strTRArr = toTypeReviverArray(strTRs);
+                strAllTRArr.concat(strTRArr as TypeReviverArray<SPReviver | ReviverPair>);
+            }
+
+            if (parseTRs){
+                let parseTRArr = toTypeReviverArray(parseTRs);
+                parseAllTRArr.concat(parseTRArr as TypeReviverArray<SPReviver | ReviverPair>);
+            }
+
+        }
+
+
+        var str = customJSONStringify(value,strAllTRArr);
+        return customJSONParse(str,parseAllTRArr);
+    } as DeepCopyByJSON
+
+
+    Object.defineProperty(deepCopyByJSON,"presetTypeReviverMap",{
+        configurable:true,
+        enumerable:true,
+        get:function () {
+            if (!this._presetTypeReviverMap){
+                this._presetTypeReviverMap = new Map();
+            }
+            return this._presetTypeReviverMap;
+        },
+        set:function (newValue) {
+            if (newValue instanceof Map){
+                this._presetTypeReviverMap = newValue;
+            }
+        }
+    });
+
+
+
+    if (presetTypeReviverMap){
+        deepCopyByJSON.presetTypeReviverMap = presetTypeReviverMap;
+    }
+
+    return deepCopyByJSON;
+}
+
+
+//Date 原始的 toJSON 方法
+const toJSONOfDate = Date.prototype.toJSON
+
+//Date 的 StringifyReviver
+function DateStringifyReviver(key: string,value: any,type:string ,callCount:number,stringifyOptions:StringifyReviverOptions) {
+    if(stringifyOptions.skip || stringifyOptions.skipMark || (callCount === 1 && stringifyOptions.skipRootMark)){
+        return toJSONOfDate.call(value);
+    }
+    return value.valueOf();
+}
+
+//Date 的 ParseReviver
+function DateParseReviver(key: string,value: any,type:string,callCount:number) {
+    return new Date(value);
 }
 
 
 
-export interface ReviverPair {
-    string:StringifyReviver;
-    parse:ParseReviver;
-}
-
-
-export type TypeReviverPairs = TypeRevivers<ReviverPair> | TypeReviversPair
-
-
-
-
-
-interface deepCopyByJSON {
-    defaultTypeReviverPairs:TypeRevivers<ReviverPair>
-}
-
+export const defaultPresetTypeReviverMap:TypeReviverMap<SPReviver | ReviverPair> = new Map([
+    [Date,{string:DateStringifyReviver, parse:DateParseReviver}]
+]);
 
 
 
 /**
  * 通过 自定义 JSON 序列人的方式 对 value 进行 深拷贝
- * @param value
- * @param dcTypeRevivers
  */
-function deepCopyByJSON(value:any,dcTypeRevivers?:TypeReviverPairs,typesOfDisDefault?:TypesOfDisableDefault) {
-    if (isBaseType(value)){
-        return value;
-    }
-
-
-    if (isTypeReviversPair(dcTypeRevivers)){
-        var strTypeRevivers = dcTypeRevivers.string;
-        var parseTypeRevivers = dcTypeRevivers.parse;
-    }else {
-        strTypeRevivers = [];
-        parseTypeRevivers = [] as TypeStringReviverFlatArray<ParseReviver>;
-        let typeStrRevFlatArr = toTypeStringReviverFlatArray(dcTypeRevivers as TypeRevivers<ReviverPair>);
-        typeStrRevFlatArr.forEach(function (tsrPair) {
-            let typeName = tsrPair[0];
-            let rPair = tsrPair[1];
-            (<TypeStringReviverFlatArray<StringifyReviver>>strTypeRevivers).push([typeName,rPair.string]);
-            (<TypeStringReviverFlatArray<ParseReviver>>parseTypeRevivers).push([typeName,rPair.parse]);
-        });
-    }
-
-    var str = customJSONStringify(value,strTypeRevivers,{disDefault:typesOfDisDefault});
-    return customJSONParse(str,parseTypeRevivers);
-}
+export const deepCopyByJSON = createDeepCopyByJSONWith(defaultPresetTypeReviverMap);
