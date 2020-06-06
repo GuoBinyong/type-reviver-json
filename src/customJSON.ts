@@ -54,36 +54,9 @@ export type TypeReviverFlatMap<Revr> = Map<DataType,Revr>;
 
 
 
-export interface TypeReviversPair {
-    string?:TypeRevivers<StringifyReviver>;
-    parse?:TypeRevivers<ParseReviver>;
-}
-
-export interface TypeReviverArrayPair {
-    string?:TypeReviverArray<StringifyReviver>;
-    parse?:TypeReviverArray<ParseReviver>;
-}
-
-
-export interface TypeReviverFlatArrayPair {
-    string?:TypeReviverFlatArray<StringifyReviver>;
-    parse?:TypeReviverFlatArray<ParseReviver>;
-}
-
-
-
-/**
- * StringParseTypeRevivers 的类型守卫
- * @param target
- */
-export function isTypeReviversPair(target:any):target is TypeReviversPair  {
-    return target && typeof target === "object" && !Array.isArray(target) && (target.string || target.parse)
-}
-
-
 
 //ReviverPair 的类型守卫
-function isReviverPair(target:any):target is ReviverPair {
+export function isReviverPair(target:any):target is ReviverPair {
     return target && typeof target.string === "function" && typeof target.parse === "function"
 }
 
@@ -94,50 +67,6 @@ function isReviverPair(target:any):target is ReviverPair {
 
 export type TypeRevivers<Revr> = TypeReviverArray<Revr> | TypeReviverObject<Revr> | TypeReviverMap<Revr>;
 
-export type TypeReviversOptions = TypeRevivers<SPReviver | ReviverPair> | TypeReviversPair
-
-
-/**
- * 解析 TypeReviversOptions 到 TypeReviversPair；
- * 它会自动将 TypeRevivers<ReviverPair>  拆分成 TypeRevivers<StringifyReviver> 和 TypeRevivers<ParseReviver>
- * @param trOpts
- */
-export function parseTypeReviversOptions(trOpts:TypeReviversOptions):TypeReviversPair {
-    if (isTypeReviversPair(trOpts)){
-        return trOpts;
-    }
-
-    let trArr = toTypeReviverArray(trOpts);
-    let hasPair = trArr.some(function (typeReviver) {
-        return isReviverPair(typeReviver[1]);
-    });
-
-    if (hasPair){
-        var strTypeRevivers:TypeReviverArray<StringifyReviver> = [];
-        var parseTypeRevivers:TypeReviverArray<ParseReviver> = [];
-
-        trArr.forEach(function (typeReviver) {
-            let reviver = typeReviver[1];
-            if (typeof reviver === "function"){
-                strTypeRevivers.push(typeReviver as [Types,StringifyReviver]);
-                parseTypeRevivers.push(typeReviver as [Types,ParseReviver]);
-            }else {
-                let types = typeReviver[0];
-                strTypeRevivers.push([types,reviver.string]);
-                parseTypeRevivers.push([types,reviver.parse]);
-            }
-        });
-
-    }else {
-        strTypeRevivers = trArr as TypeReviverArray<StringifyReviver>;
-        parseTypeRevivers = trArr as TypeReviverArray<ParseReviver>;
-    }
-
-    return {
-        string:strTypeRevivers,
-        parse:parseTypeRevivers
-    };
-}
 
 
 /**
@@ -292,10 +221,6 @@ export interface StringifyReviverOptions {
     skipRootMark?:boolean;   //是否跳过 顶层的 标记
 }
 
-/**
- * 需要禁止使用默认JSON序列化的类型；即禁止调用 toJSON 的类型；
- */
-export type TypesOfDisableDefault = Function[] | Function;
 
 
 export interface JSONStringifyOptions extends StringifyReviverOptions{
