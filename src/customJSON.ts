@@ -2,7 +2,7 @@ import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBase
 
 
 
-// customJSONStringify 专用的 Reviver
+// customJSONStringify 专用的 Revr
 export type StringifyReviver = (this: any, key: string,value: any,type:string ,callCount:number,stringifyOptions:StringifyReviverOptions) => any;
 
 // customJSONParse 专用的 Reviver
@@ -12,32 +12,43 @@ export type ParseReviver = (this: any, key: string,value: any,type:string,callCo
 export type SPReviver = (this: any, key: string,value: any,type:string ,callCount:number ,stringifyOptions:StringifyReviverOptions|undefined) => any;
 
 
+
+
+export interface ReviverPair {
+    string:StringifyReviver;
+    parse:ParseReviver;
+}
+
+
+export type Reviver = SPReviver | StringifyReviver | ParseReviver | ReviverPair
+
+
 export type DataType =  ExactTypeString | ExactType;
 export type DataTypeArray = DataType[];
 export type Types = DataType | DataTypeArray;
 
 
-export type TypeReviverArray<Reviver> = [Types,Reviver][];
+export type TypeReviverArray<Revr> = [Types,Revr][];
 
-export type TypeStringReviverArray<Reviver> = [ExactTypeString | ExactTypeString[],Reviver][];
-export type TypeStringReviverFlatArray<Reviver> = [ExactTypeString,Reviver][];
+export type TypeStringReviverArray<Revr> = [ExactTypeString | ExactTypeString[],Revr][];
+export type TypeStringReviverFlatArray<Revr> = [ExactTypeString,Revr][];
 
 
 /**
  * 扁平化的 TypeReviverArray
  */
-export type TypeReviverFlatArray<Reviver> = [DataType,Reviver][];
+export type TypeReviverFlatArray<Revr> = [DataType,Revr][];
 
-export interface TypeReviverObject<Reviver> {
-    [typeName:string]:Reviver;
+export interface TypeReviverObject<Revr> {
+    [typeName:string]:Revr;
 }
 
-export type TypeReviverMap<Reviver> = Map<Types,Reviver>;
+export type TypeReviverMap<Revr> = Map<Types,Revr>;
 
 /**
  * 扁平化的 TypeReviverMap
  */
-export type TypeReviverFlatMap<Reviver> = Map<DataType,Reviver>;
+export type TypeReviverFlatMap<Revr> = Map<DataType,Revr>;
 
 
 
@@ -71,11 +82,6 @@ export function isTypeReviversPair(target:any):target is TypeReviversPair  {
 
 
 
-export interface ReviverPair {
-    string:StringifyReviver;
-    parse:ParseReviver;
-}
-
 //ReviverPair 的类型守卫
 function isReviverPair(target:any):target is ReviverPair {
     return target && typeof target.string === "function" && typeof target.parse === "function"
@@ -86,7 +92,7 @@ function isReviverPair(target:any):target is ReviverPair {
 
 
 
-export type TypeRevivers<Reviver> = TypeReviverArray<Reviver> | TypeReviverObject<Reviver> | TypeReviverMap<Reviver>;
+export type TypeRevivers<Revr> = TypeReviverArray<Revr> | TypeReviverObject<Revr> | TypeReviverMap<Revr>;
 
 export type TypeReviversOptions = TypeRevivers<SPReviver | ReviverPair> | TypeReviversPair
 
@@ -138,15 +144,15 @@ export function parseTypeReviversOptions(trOpts:TypeReviversOptions):TypeReviver
  * 将 typeRevivers 转成 TypeReviverArray
  * @param typeRevivers
  */
-export function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverArray<Reviver> {
+export function toTypeReviverArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverArray<Revr> {
 
     switch (typeRevivers.constructor.name) {
         case "Map":{
-            var typeRevArr = Array.from(typeRevivers as TypeReviverMap<Reviver>);
+            var typeRevArr = Array.from(typeRevivers as TypeReviverMap<Revr>);
             break;
         }
         case "Array":{
-            typeRevArr = typeRevivers as TypeReviverArray<Reviver>;
+            typeRevArr = typeRevivers as TypeReviverArray<Revr>;
             break;
         }
         default:{
@@ -162,10 +168,10 @@ export function toTypeReviverArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):
 /**
  * 类型扁平化解析结果
  */
-interface TypeFlatParseInfo<Reviver> {
-    typeFlat:TypeReviverFlatArray<Reviver>;
-    stringFlat:TypeStringReviverFlatArray<Reviver>;
-    trObject:TypeReviverObject<Reviver>;
+interface TypeFlatParseInfo<Revr> {
+    typeFlat:TypeReviverFlatArray<Revr>;
+    stringFlat:TypeStringReviverFlatArray<Revr>;
+    trObject:TypeReviverObject<Revr>;
     typeFun:Function[];  //所有类型对应的构造函数数组，如果类型没有对应的构建函数，则不包含在内；
 }
 
@@ -175,9 +181,9 @@ interface TypeFlatParseInfo<Reviver> {
  * 扁平化解析 TypeReviverArray
  * @param typeReviverArr
  */
-export function flatParseTypeReviverArray<Reviver>(typeReviverArr:TypeReviverArray<Reviver>):TypeFlatParseInfo<Reviver> {
-    let typeFlatArr:TypeReviverFlatArray<Reviver> = [];
-    let stringFlatArr:TypeStringReviverFlatArray<Reviver> = [];
+export function flatParseTypeReviverArray<Revr>(typeReviverArr:TypeReviverArray<Revr>):TypeFlatParseInfo<Revr> {
+    let typeFlatArr:TypeReviverFlatArray<Revr> = [];
+    let stringFlatArr:TypeStringReviverFlatArray<Revr> = [];
     let typeFunArr:Function[] = [];
 
     typeReviverArr.forEach(function (typeReviver) {
@@ -240,7 +246,7 @@ export function flatParseTypeReviverArray<Reviver>(typeReviverArr:TypeReviverArr
  * 扁平化解析 TypeRevivers
  * @param typeRevivers
  */
-export function flatParseTypeRevivers<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeFlatParseInfo<Reviver>  {
+export function flatParseTypeRevivers<Revr>(typeRevivers:TypeRevivers<Revr>):TypeFlatParseInfo<Revr>  {
     let typeReviverArr = toTypeReviverArray(typeRevivers);
     return  flatParseTypeReviverArray(typeReviverArr);
 }
@@ -248,25 +254,25 @@ export function flatParseTypeRevivers<Reviver>(typeRevivers:TypeRevivers<Reviver
 
 
 
-export function toTypeStringReviverFlatArray<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeStringReviverFlatArray<Reviver>  {
+export function toTypeStringReviverFlatArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeStringReviverFlatArray<Revr>  {
     return  flatParseTypeRevivers(typeRevivers).stringFlat;
 }
 
 
-export function toTypeReviverObject<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverObject<Reviver>  {
+export function toTypeReviverObject<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverObject<Revr>  {
     return flatParseTypeRevivers(typeRevivers).trObject;
 }
 
 
-export function toTypeReviverMap<Reviver>(typeRevivers:TypeRevivers<Reviver>):TypeReviverMap<Reviver> {
+export function toTypeReviverMap<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverMap<Revr> {
 
     switch (typeRevivers.constructor.name) {
         case "Map":{
-            var typeRevMap = typeRevivers as TypeReviverMap<Reviver>;
+            var typeRevMap = typeRevivers as TypeReviverMap<Revr>;
             break;
         }
         case "Array":{
-            typeRevMap = new Map(typeRevivers as TypeReviverArray<Reviver>);
+            typeRevMap = new Map(typeRevivers as TypeReviverArray<Revr>);
             break;
         }
         default:{
@@ -295,7 +301,7 @@ export type TypesOfDisableDefault = Function[] | Function;
 export interface JSONStringifyOptions extends StringifyReviverOptions{
     skipRoot?:boolean;   //是否跳过 顶层的 自定义操作
     space?: string | number;
-    mark?:string;   //类型标记
+    mark?:string | null ;   //类型标记
 }
 
 /**
@@ -310,127 +316,98 @@ const _defaultMark = "__MarKOfCustomJSON__";
  * @param typeRevivers?:TypeRevivers|null    定义 类型 与 其对类的 自定义序列化函数；
  * @param options:JSONStringifyOptions    选项
  */
-export function customJSONStringify(value: any, typeReviversOpts?:TypeReviversOptions|null,options:JSONStringifyOptions = {}):string {
+export function customJSONStringify<Revr extends Reviver>(value: any, typeRevivers?:TypeRevivers<Revr>|null,options:JSONStringifyOptions = {}):string {
 
     try {
 
+        if  (typeRevivers){
+            var parseInfo =  flatParseTypeRevivers(typeRevivers);
+            let disDefaultArr = parseInfo.typeFun;
 
-        if  (typeReviversOpts){
-            let trsPair = parseTypeReviversOptions(typeReviversOpts);
-            let typeRevivers = trsPair.string;
+            //禁用toJSON
+            if (disDefaultArr.length > 0){
+                var disTypeInfos:{ type:Function, toJSON:Function }[] | undefined  = disDefaultArr.reduce(function (infoArr:{ type:Function, toJSON:Function }[],fun) {
+                    let toJSON = fun.prototype.toJSON;
 
-            if  (typeRevivers){
-                var parseInfo =  flatParseTypeRevivers(typeRevivers);
-                let disDefaultArr = parseInfo.typeFun;
+                    if (toJSON){
+                        fun.prototype.toJSON = undefined;
+                        infoArr.push({
+                            type:fun,
+                            toJSON:toJSON
+                        });
+                    }
 
-                //禁用toJSON
-                if (disDefaultArr.length > 0){
-                    var disTypeInfos:{ type:Function, toJSON:Function }[] | undefined  = disDefaultArr.reduce(function (infoArr:{ type:Function, toJSON:Function }[],fun) {
-                        let toJSON = fun.prototype.toJSON;
-
-                        if (toJSON){
-                            fun.prototype.toJSON = undefined;
-                            infoArr.push({
-                                type:fun,
-                                toJSON:toJSON
-                            });
-                        }
-
-                        return infoArr;
-                    },[]);
-                }
-
-                var trObj = parseInfo.trObject;
-
-                if (trObj){
-
-                    let opts = Object.assign({},options);
-                    let mark = opts.mark as string;
-                    mark = opts.mark = mark == null ? _defaultMark : mark;
-
-
-                    let callCount = 0;  // stringifyReviver 的调用次数
-
-                    let stringifyReviver = function (this: any, key: string, value: any) {
-                        ++callCount;
-
-                        let isMarked = value != null && value[mark];  // value 是被标记的数据，表示已经处理过了，不用再处理了
-                        let needSkip = opts.skipRoot && callCount === 1;   //需要跳过这次处理
-                        if (isMarked || needSkip){
-                            return value;
-                        }
-
-
-                        let typeStr = getExactTypeStringOf(value);
-                        let revier = trObj[typeStr];
-                        if (!revier){
-                            return value;
-                        }
-
-                        let rerOpts = Object.assign({},opts);
-                        let rerRes = revier.call(this,key,value,typeStr,callCount,rerOpts);
-
-
-                        if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,typeStr,callCount,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
-                            return value;
-                        }
-
-
-                        /*
-                        在以下任一情况下，均不会添加 mark
-                        - revier 返回 undefined  :  `rerRes === undefined`
-                        - skipMark 为 true : `rerOpts.skipMark`
-                        - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && callCount === 1`
-                        */
-                        if (rerRes === undefined || rerOpts.skipMark || (rerOpts.skipRootMark && callCount === 1)){
-                            return rerRes;
-                        }
-
-                        if  (isBaseType(rerRes)){
-                            /*
-                             此处要手动拼装，不能用
-                             ```
-                             JSON.stringify({
-                                [mark]:true,
-                                type:typeStr,
-                                value:rerRes
-                            });
-                            ```
-                            原因：
-                            此处返回后，JSON.stringify 会对 reviver 返回的值再次进行 JSON.stringify，这会导致字符串外面又包一层引号，从而会导致在解析时会把该值作为 字符串解析，而不是 JSON 对象；
-                             */
-                            let valueStr = typeof rerRes === "string" ? `"${rerRes}"` : rerRes;
-                            return `{"${mark}":true,"type":"${typeStr}","value":${valueStr}`;
-
-                            // return JSON.stringify({
-                            //     [mark]:true,
-                            //     type:typeStr,
-                            //     value:rerRes
-                            // });
-                        }
-
-                        let markPropDes = {
-                            configurable:true,
-                            writable:true,
-                            enumerable: false,
-                            value:true
-                        };
-
-                        Object.defineProperty(rerRes,mark,markPropDes);
-
-
-                        let packData = [rerRes,typeStr,mark];
-                        Object.defineProperty(packData,mark,markPropDes);
-
-                        return packData;
-
-
-                    };
-
-                    var jsonStr =  JSON.stringify(value,stringifyReviver,opts.space);
-                }
-
+                    return infoArr;
+                },[]);
             }
+
+            var trObj = parseInfo.trObject;
+
+            if (trObj){
+
+                let opts = Object.assign({},options);
+
+                let mark = opts.mark as string;
+                mark = opts.mark = mark == null ? _defaultMark : mark ;
+                let markType = mark + "Type";
+                let markValue = mark + "Value";
+
+
+                let callCount = 0;  // stringifyReviver 的调用次数
+
+                let stringifyReviver = function (this: any, key: string, value: any) {
+                    ++callCount;
+
+                    //此处的写法没有问题，这样写是为了提高性能
+                    switch (key) {
+                        case mark:;
+                        case markType:;
+                        case markValue:return value;
+                    }
+
+
+                    if (opts.skipRoot && callCount === 1){  //需要跳过这次处理
+                        return value;
+                    }
+
+
+                    let typeName = getExactTypeStringOf(value);
+                    let revier = trObj[typeName];
+                    let revierFun:StringifyReviver = typeof revier === "function" ? <StringifyReviver>revier : (<ReviverPair>revier).string;
+
+                    if (!revierFun){
+                        return value;
+                    }
+
+                    let rerOpts = Object.assign({},opts);
+                    let rerRes = revierFun.call(this,key,value,typeName,callCount,rerOpts);
+
+
+                    if (rerOpts.skip){ //需要放在上一句 `revier.call(this,key,value,typeName,callCount,rerOpts)` 的后面，因为 revier 可修改 rerOpts 的值
+                        return value;
+                    }
+
+
+                    /*
+                    在以下任一情况下，均不会添加 mark
+                    - revier 返回 undefined  :  `rerRes === undefined`
+                    - skipMark 为 true : `rerOpts.skipMark`
+                    - value 是被 customJSONStringify 最初序列化的目标（即：根） 且  skipRootMark 为 true : `rerOpts.skipRootMark && callCount === 1`
+                    */
+                    if (rerRes === undefined || rerOpts.skipMark || (rerOpts.skipRootMark && callCount === 1)){
+                        return rerRes;
+                    }
+
+                    return {
+                        [mark]:true,
+                        [markType]:typeName,
+                        [markValue]:rerRes
+                    };
+                };
+
+                var jsonStr =  JSON.stringify(value,stringifyReviver,opts.space);
+            }
+
         }
 
 
@@ -465,7 +442,7 @@ export enum LostRevier {
 
 
 export interface JSONParseOptions {
-    mark?:string | string[] | null;   //类型标记
+    mark?:string | null;   //类型标记
     lostRevier?:LostRevier;   //当找不到 Revier 时，如何处理
 }
 
@@ -476,27 +453,24 @@ export interface JSONParseOptions {
  * @param typeRevivers
  * @param options
  */
-export function customJSONParse(text: string, typeReviversOpts?:TypeReviversOptions|null ,options:JSONParseOptions = {}):any {
+export function customJSONParse<Revr extends Reviver>(text: string, typeRevivers?:TypeRevivers<Revr>|null ,options:JSONParseOptions = {}):any {
 
-    let {mark = _defaultMark,lostRevier = LostRevier.parse} = options;
+    let lostRevier = options.lostRevier || LostRevier.parse ;
 
-    if (mark == null){
+    if (typeRevivers) {
+        let parseInfo = flatParseTypeRevivers(typeRevivers);
+        var trObj = parseInfo.trObject;
+    }
+
+
+    // @ts-ignore
+    if (!trObj && lostRevier === LostRevier.original){
         return JSON.parse(text);
     }
 
-    var marks = Array.isArray(mark) ? mark : [mark];
-
-    var trObj:TypeReviverObject<ParseReviver> = {};
-
-    if  (typeReviversOpts) {
-        let trsPair = parseTypeReviversOptions(typeReviversOpts);
-        let typeRevivers = trsPair.parse;
-
-        if (typeRevivers) {
-            let parseInfo = flatParseTypeRevivers(typeRevivers);
-            trObj = parseInfo.trObject;
-        }
-    }
+    let mark = options.mark == null ? _defaultMark : options.mark ;
+    let markType = mark + "Type";
+    let markValue = mark + "Value";
 
     let callCount = 0;  // parseReviver 的调用次数
 
@@ -507,27 +481,19 @@ export function customJSONParse(text: string, typeReviversOpts?:TypeReviversOpti
         }
 
 
-        if (Array.isArray(value)){
-            var isMarked = value.length === 3 && marks.includes(value[2]);
-            if (isMarked){
-                var realValue = value[0];
-                var typeName = value[1];
-            }
-        }else {
-            typeName = value["type"];
-            isMarked = typeName && marks.some(function (markStr) {return value[markStr]});
-            if (isMarked){
-                realValue = value["value"];
-            }
-        }
-
-        if (!isMarked){
+        let typeName = value[markType];
+        if (!(typeName && value[mark])){
             return value;
         }
 
-        let revier = trObj[typeName];
+        var realValue = value[markValue];
 
-        if (!revier){
+
+
+        let revier = trObj[typeName];
+        let revierFun:ParseReviver = typeof revier === "function" ? <ParseReviver>revier : (<ReviverPair>revier).parse;
+
+        if (!revierFun){
             switch (lostRevier) {
                 case LostRevier.ignore: return undefined;
                 case LostRevier.original:return value;
@@ -535,7 +501,7 @@ export function customJSONParse(text: string, typeReviversOpts?:TypeReviversOpti
             }
         }
 
-        return revier.call(this,key,realValue,typeName,callCount);
+        return revierFun.call(this,key,realValue,typeName,callCount);
     }
 
     return JSON.parse(text,parseReviver);
