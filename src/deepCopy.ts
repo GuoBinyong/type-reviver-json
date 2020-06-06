@@ -67,24 +67,26 @@ export function createDeepCopyByJSONWith(presetTypeReviverMap?:TypeReviverMap<Re
         }
 
         let preTRArr = toTypeReviverArray(deepCopyByJSON.presetTypeReviverMap);
+        let strAllTRArr = preTRArr;
+        let parseAllTRArr = preTRArr;
 
         if (typeReviversOpts){
             if (isTypeReviversPair(typeReviversOpts)){
                 let strTRs = typeReviversOpts.string;
                 if (strTRs){
                     let strTRArr = toTypeReviverArray(strTRs);
-                    var strAllTRArr:TypeReviverArray<Reviver> | undefined = preTRArr.concat(strTRArr);
+                    strAllTRArr = strAllTRArr.concat(strTRArr);
                 }
 
                 let parseTRs = typeReviversOpts.parse;
                 if (parseTRs){
                     let parseTRArr = toTypeReviverArray(parseTRs);
-                    var parseAllTRArr:TypeReviverArray<Reviver> | undefined  = preTRArr.concat(parseTRArr);
+                    parseAllTRArr  = parseAllTRArr.concat(parseTRArr);
                 }
 
             }else {
                 let trArr = toTypeReviverArray(typeReviversOpts);
-                strAllTRArr = preTRArr.concat(trArr);
+                strAllTRArr = strAllTRArr.concat(trArr);
                 parseAllTRArr = strAllTRArr;
             }
 

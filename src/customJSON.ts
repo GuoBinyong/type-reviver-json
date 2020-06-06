@@ -298,7 +298,7 @@ export function customJSONStringify<Revr extends Reviver>(value: any, typeRevive
 
                     let typeName = getExactTypeStringOf(value);
                     let revier = trObj[typeName];
-                    let revierFun:StringifyReviver = typeof revier === "function" ? <StringifyReviver>revier : (<ReviverPair>revier).string;
+                    let revierFun:StringifyReviver = (revier && typeof revier === "object") ? (<ReviverPair>revier).string : <StringifyReviver>revier ;
 
                     if (!revierFun){
                         return value;
@@ -416,7 +416,7 @@ export function customJSONParse<Revr extends Reviver>(text: string, typeRevivers
 
 
         let revier = trObj[typeName];
-        let revierFun:ParseReviver = typeof revier === "function" ? <ParseReviver>revier : (<ReviverPair>revier).parse;
+        let revierFun:ParseReviver = (revier && typeof revier === "object") ? (<ReviverPair>revier).parse : <ParseReviver>revier ;
 
         if (!revierFun){
             switch (lostRevier) {
