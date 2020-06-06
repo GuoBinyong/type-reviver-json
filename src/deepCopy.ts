@@ -5,7 +5,8 @@ import {
     toTypeReviverArray,
     TypeReviverArray,
     TypeRevivers,
-    Reviver
+    Reviver,
+    ReviverPair
 } from "./index"
 
 import {isBaseType} from "com-tools"
@@ -125,12 +126,18 @@ export function createDeepCopyByJSONWith(presetTypeReviverMap?:TypeReviverMap<Re
 
 
 
-import {Date_StringifyReviver,Date_ParseReviver} from "./revivers"
+import {
+    Date_StringifyReviver,Date_ParseReviver,
+    Map_StringifyReviver,Map_ParseReviver,
+    Set_StringifyReviver,Set_ParseReviver
+} from "./revivers"
 
 
 export const defaultPresetTypeReviverMap:TypeReviverMap<Reviver> = new Map([
-    [Date,{string:Date_StringifyReviver, parse:Date_ParseReviver}]
-]);
+    [Date,{string:Date_StringifyReviver, parse:Date_ParseReviver}],
+    [Map,{string:Map_StringifyReviver, parse:Map_ParseReviver}],
+    [Set,{string:Set_StringifyReviver, parse:Set_ParseReviver}]
+] as TypeReviverArray<ReviverPair>);
 
 
 
