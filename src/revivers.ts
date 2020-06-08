@@ -151,15 +151,33 @@ export function Function_StringifyReviver(key: string,value:any,type:string ,cal
     if(Function_toJSON && stringifyOptions.skip || stringifyOptions.skipMark || (callCount === 1 && stringifyOptions.skipRootMark)){
         return Function_toJSON.call(value);
     }
-    return value.toString();
+    return {
+        source:value.toString(),
+        name:value.name
+    };
 }
 
 //ParseReviver
 export function Function_ParseReviver(key: string,value: any,type:string,callCount:number) {
     /*
+    考虑到安全和性能的原因，弃用 eval，改用 Function；
+    */
+    let {source,name} = value;
+    //判断函数代码是否是匿名函数
+    let hasName = /function\s+[A-Za-z_$]+[\w$]*\s*\(/.test(source);
+
+    if (!hasName && /^[A-Za-z_$]+[\w$]*$/.test(name)){ // 当 函数代码是匿名函数 且 name 是有效的标识符
+        var funBody = `"use strict"; var ${name} = ${source} ; return ${name}`;
+    }else {
+        funBody = `"use strict"; return (${source})`;
+    }
+    return (new Function(funBody))();
+
+    /*
     匿名函数 不能用于 函数声明，只能用于函数表达式；
     所以，如果 value 是匿名函数，则 `eval(value);` 会报错： `Uncaught SyntaxError: Function statements require a function name`
     此时，只需要用 `()` 将其转为 函数表达式 即可；
     */
-    return eval(`(${value})`);
+    // return eval(`(${value})`);
+
 }
