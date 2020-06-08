@@ -1,15 +1,15 @@
 import {
     customJSONStringify,
     customJSONParse,
-    TypeReviverMap,
-    toTypeReviverArray,
-    TypeReviverArray,
-    TypeRevivers,
     Reviver,
     ReviverPair
-} from "./index"
+} from "./customJSON";
 
-import {isBaseType} from "type-tls"
+import {TypeReviverMap,toTypeReviverArray,TypeReviverArray,TypeRevivers} from "./TypeReviver";
+
+import {isBaseType} from "type-tls";
+
+
 
 
 

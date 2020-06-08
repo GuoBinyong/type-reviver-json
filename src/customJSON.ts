@@ -1,4 +1,5 @@
-import {getExactTypeNameOf, ExactType, ExactTypeName, getNameOfType,isBaseType,getTypeByName} from "type-tls";
+import {getExactTypeNameOf,isBaseType} from "type-tls";
+import {TypeRevivers,flatParseTypeRevivers} from "./TypeReviver"
 
 
 
@@ -12,45 +13,15 @@ export type ParseReviver = (this: any, key: string,value: any,type:string,callCo
 export type SPReviver = (this: any, key: string,value: any,type:string ,callCount:number ,stringifyOptions:StringifyReviverOptions|undefined) => any;
 
 
+export type Reviver = SPReviver | StringifyReviver | ParseReviver | ReviverPair
+
+
 
 
 export interface ReviverPair {
     string:StringifyReviver;
     parse:ParseReviver;
 }
-
-
-export type Reviver = SPReviver | StringifyReviver | ParseReviver | ReviverPair
-
-
-export type DataType =  ExactTypeName | ExactType;
-export type DataTypeArray = DataType[];
-export type Types = DataType | DataTypeArray;
-
-
-export type TypeReviverArray<Revr> = [Types,Revr][];
-
-export type TypeNameReviverArray<Revr> = [ExactTypeName | ExactTypeName[],Revr][];
-export type TypeNameReviverFlatArray<Revr> = [ExactTypeName,Revr][];
-
-
-/**
- * 扁平化的 TypeReviverArray
- */
-export type TypeReviverFlatArray<Revr> = [DataType,Revr][];
-
-export interface TypeReviverObject<Revr> {
-    [typeName:string]:Revr;
-}
-
-export type TypeReviverMap<Revr> = Map<Types,Revr>;
-
-/**
- * 扁平化的 TypeReviverMap
- */
-export type TypeReviverFlatMap<Revr> = Map<DataType,Revr>;
-
-
 
 
 
@@ -61,156 +32,6 @@ export function isReviverPair(target:any):target is ReviverPair {
 }
 
 
-
-
-
-
-export type TypeRevivers<Revr> = TypeReviverArray<Revr> | TypeReviverObject<Revr> | TypeReviverMap<Revr>;
-
-
-
-/**
- * 将 typeRevivers 转成 TypeReviverArray
- * @param typeRevivers
- */
-export function toTypeReviverArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverArray<Revr> {
-
-    switch (typeRevivers.constructor.name) {
-        case "Map":{
-            var typeRevArr = Array.from(typeRevivers as TypeReviverMap<Revr>);
-            break;
-        }
-        case "Array":{
-            typeRevArr = typeRevivers as TypeReviverArray<Revr>;
-            break;
-        }
-        default:{
-            typeRevArr = Object.entries(typeRevivers);
-        }
-    }
-
-    return typeRevArr;
-}
-
-
-
-/**
- * 类型扁平化解析结果
- */
-interface TypeFlatParseInfo<Revr> {
-    typeFlat:TypeReviverFlatArray<Revr>;
-    stringFlat:TypeNameReviverFlatArray<Revr>;
-    trObject:TypeReviverObject<Revr>;
-    typeFun:Function[];  //所有类型对应的构造函数数组，如果类型没有对应的构建函数，则不包含在内；
-}
-
-
-
-/**
- * 扁平化解析 TypeReviverArray
- * @param typeReviverArr
- */
-export function flatParseTypeReviverArray<Revr>(typeReviverArr:TypeReviverArray<Revr>):TypeFlatParseInfo<Revr> {
-    let typeFlatArr:TypeReviverFlatArray<Revr> = [];
-    let stringFlatArr:TypeNameReviverFlatArray<Revr> = [];
-    let typeFunArr:Function[] = [];
-
-    typeReviverArr.forEach(function (typeReviver) {
-        let types = typeReviver[0];
-        let reviver = typeReviver[1];
-
-        let typeArr:DataTypeArray = Array.isArray(types) ? types : [types];
-
-        typeArr.forEach(function (dataType) {
-            typeFlatArr.push([dataType,reviver]);
-
-            switch (typeof dataType) {
-                case "string":{
-                    var typeName = dataType;
-                    var typeFun = getTypeByName(dataType);
-                    break
-                }
-                case "function":{
-                    typeName = getNameOfType(dataType);
-                    typeFun = dataType;
-                    break
-                }
-                default:{
-                    typeName = getNameOfType(dataType);
-                    typeFun = getTypeByName(typeName);
-                }
-            }
-            stringFlatArr.push([typeName,reviver]);
-
-            if (typeof typeFun === "function"){
-                typeFunArr.push(typeFun);
-            }
-
-        });
-    });
-
-    let info = {
-        typeFlat:typeFlatArr,
-        stringFlat:stringFlatArr,
-        typeFun:typeFunArr
-    };
-
-    return Object.defineProperty(info,"trObject",{
-        configurable:true,
-        enumerable:true,
-        get:function () {
-            if (this._trObject === undefined){
-                this._trObject = Object.fromEntries(stringFlatArr);
-            }
-            return this._trObject;
-        },
-        set:function (newValue) {
-            this._trObject = newValue;
-        }
-    });
-}
-
-
-/**
- * 扁平化解析 TypeRevivers
- * @param typeRevivers
- */
-export function flatParseTypeRevivers<Revr>(typeRevivers:TypeRevivers<Revr>):TypeFlatParseInfo<Revr>  {
-    let typeReviverArr = toTypeReviverArray(typeRevivers);
-    return  flatParseTypeReviverArray(typeReviverArr);
-}
-
-
-
-
-export function toTypeNameReviverFlatArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeNameReviverFlatArray<Revr>  {
-    return  flatParseTypeRevivers(typeRevivers).stringFlat;
-}
-
-
-export function toTypeReviverObject<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverObject<Revr>  {
-    return flatParseTypeRevivers(typeRevivers).trObject;
-}
-
-
-export function toTypeReviverMap<Revr>(typeRevivers:TypeRevivers<Revr>):TypeReviverMap<Revr> {
-
-    switch (typeRevivers.constructor.name) {
-        case "Map":{
-            var typeRevMap = typeRevivers as TypeReviverMap<Revr>;
-            break;
-        }
-        case "Array":{
-            typeRevMap = new Map(typeRevivers as TypeReviverArray<Revr>);
-            break;
-        }
-        default:{
-            typeRevMap = new Map(Object.entries(typeRevivers));
-        }
-    }
-
-    return typeRevMap;
-}
 
 
 
