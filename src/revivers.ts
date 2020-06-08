@@ -122,21 +122,14 @@ export function RegExp_StringifyReviver(key: string,value:any,type:string ,callC
 
     return {
         source:value.source,
-        flags:value.flags,
-        dotAll:value.dotAll,
-        global:value.global,
-        ignoreCase:value.ignoreCase,
-        multiline:value.multiline,
-        sticky:value.sticky,
-        unicode:value.unicode
+        flags:value.flags
     };
 }
 
 //ParseReviver
 export function RegExp_ParseReviver(key: string,value: any,type:string,callCount:number) {
-    let {source,flags,...otherProps} = value;
+    let {source,flags} = value;
     let reg = new RegExp(source,flags);
-    Object.assign(reg,otherProps);
     return reg;
 }
 
@@ -163,5 +156,10 @@ export function Function_StringifyReviver(key: string,value:any,type:string ,cal
 
 //ParseReviver
 export function Function_ParseReviver(key: string,value: any,type:string,callCount:number) {
-    return eval(value);
+    /*
+    匿名函数 不能用于 函数声明，只能用于函数表达式；
+    所以，如果 value 是匿名函数，则 `eval(value);` 会报错： `Uncaught SyntaxError: Function statements require a function name`
+    此时，只需要用 `()` 将其转为 函数表达式 即可；
+    */
+    return eval(`(${value})`);
 }
