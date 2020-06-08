@@ -9,7 +9,7 @@ import {
     ReviverPair
 } from "./index"
 
-import {isBaseType} from "com-tools"
+import {isBaseType} from "type-tls"
 
 
 

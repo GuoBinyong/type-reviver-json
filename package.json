@@ -1,21 +1,23 @@
 {
-  "name": "library-rollup-template",
+  "name": "json-tls",
   "version": "1.0.0",
-  "description": "library-rollup-template 称为 库构建模板，又称 公共代码构建模板 ，是专门用于构建 公共代码（如：封装的库、工具等） 的 rollup 配置模板，当需要开发和构建公共代码时，直接克隆本项目即可，并默认在的 src 目录下开发即可；",
-  "main": "dist/library-rollup-template.cjs.js",
-  "module": "dist/library-rollup-template.esm.js",
+  "description": "json-tls 提供了JSON相关的工具，如:customJSONStringify、customJSONParse 等",
+  "main": "dist/json-tls.cjs.js",
+  "module": "dist/json-tls.esm.js",
   "types": "dist/index.d.ts",
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/GuoBinyong/library-rollup-template"
+    "url": "https://github.com/GuoBinyong/json-tls"
   },
   "keywords": [
-    "前端库",
-    "web库",
-    "library",
-    "rollup 模板",
-    "公共代码"
+    "JSON",
+    "tools",
+    "JSON tools",
+    "json 工具",
+    "公共代码",
+    "stringify",
+    "parse"
   ],
   "author": "郭斌勇",
   "license": "ISC",
@@ -43,6 +45,6 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
-    "com-tools": "^1.0.17"
+    "type-tls": "^1.0.0"
   }
 }

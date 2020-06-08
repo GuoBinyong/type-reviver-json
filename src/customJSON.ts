@@ -1,4 +1,4 @@
-import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBaseType,getTypeByName} from "com-tools";
+import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBaseType,getTypeByName} from "type-tls";
 
 
 
