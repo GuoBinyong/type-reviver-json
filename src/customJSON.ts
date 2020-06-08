@@ -1,5 +1,5 @@
 import {getExactTypeNameOf,isBaseType} from "type-tls";
-import {TypeRevivers,flatParseTypeRevivers} from "./TypeReviver"
+import {TypeRevivers,flatParseTypeRevivers} from "type-reviver"
 
 
 

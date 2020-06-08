@@ -5,7 +5,7 @@ import {
     ReviverPair
 } from "./customJSON";
 
-import {TypeReviverMap,toTypeReviverArray,TypeReviverArray,TypeRevivers} from "./TypeReviver";
+import {TypeReviverMap,toTypeReviverArray,TypeReviverArray,TypeRevivers} from "type-reviver";
 
 import {isBaseType} from "type-tls";
 
