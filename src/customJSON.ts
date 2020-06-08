@@ -1,4 +1,4 @@
-import {getExactTypeStringOf, ExactType, ExactTypeString, getStringOfType,isBaseType,getTypeByName} from "type-tls";
+import {getExactTypeNameOf, ExactType, ExactTypeName, getNameOfType,isBaseType,getTypeByName} from "type-tls";
 
 
 
@@ -23,15 +23,15 @@ export interface ReviverPair {
 export type Reviver = SPReviver | StringifyReviver | ParseReviver | ReviverPair
 
 
-export type DataType =  ExactTypeString | ExactType;
+export type DataType =  ExactTypeName | ExactType;
 export type DataTypeArray = DataType[];
 export type Types = DataType | DataTypeArray;
 
 
 export type TypeReviverArray<Revr> = [Types,Revr][];
 
-export type TypeStringReviverArray<Revr> = [ExactTypeString | ExactTypeString[],Revr][];
-export type TypeStringReviverFlatArray<Revr> = [ExactTypeString,Revr][];
+export type TypeNameReviverArray<Revr> = [ExactTypeName | ExactTypeName[],Revr][];
+export type TypeNameReviverFlatArray<Revr> = [ExactTypeName,Revr][];
 
 
 /**
@@ -99,7 +99,7 @@ export function toTypeReviverArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeRe
  */
 interface TypeFlatParseInfo<Revr> {
     typeFlat:TypeReviverFlatArray<Revr>;
-    stringFlat:TypeStringReviverFlatArray<Revr>;
+    stringFlat:TypeNameReviverFlatArray<Revr>;
     trObject:TypeReviverObject<Revr>;
     typeFun:Function[];  //所有类型对应的构造函数数组，如果类型没有对应的构建函数，则不包含在内；
 }
@@ -112,7 +112,7 @@ interface TypeFlatParseInfo<Revr> {
  */
 export function flatParseTypeReviverArray<Revr>(typeReviverArr:TypeReviverArray<Revr>):TypeFlatParseInfo<Revr> {
     let typeFlatArr:TypeReviverFlatArray<Revr> = [];
-    let stringFlatArr:TypeStringReviverFlatArray<Revr> = [];
+    let stringFlatArr:TypeNameReviverFlatArray<Revr> = [];
     let typeFunArr:Function[] = [];
 
     typeReviverArr.forEach(function (typeReviver) {
@@ -131,12 +131,12 @@ export function flatParseTypeReviverArray<Revr>(typeReviverArr:TypeReviverArray<
                     break
                 }
                 case "function":{
-                    typeName = getStringOfType(dataType);
+                    typeName = getNameOfType(dataType);
                     typeFun = dataType;
                     break
                 }
                 default:{
-                    typeName = getStringOfType(dataType);
+                    typeName = getNameOfType(dataType);
                     typeFun = getTypeByName(typeName);
                 }
             }
@@ -183,7 +183,7 @@ export function flatParseTypeRevivers<Revr>(typeRevivers:TypeRevivers<Revr>):Typ
 
 
 
-export function toTypeStringReviverFlatArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeStringReviverFlatArray<Revr>  {
+export function toTypeNameReviverFlatArray<Revr>(typeRevivers:TypeRevivers<Revr>):TypeNameReviverFlatArray<Revr>  {
     return  flatParseTypeRevivers(typeRevivers).stringFlat;
 }
 
@@ -296,7 +296,7 @@ export function customJSONStringify<Revr extends Reviver>(value: any, typeRevive
                     }
 
 
-                    let typeName = getExactTypeStringOf(value);
+                    let typeName = getExactTypeNameOf(value);
                     let revier = trObj[typeName];
                     let revierFun:StringifyReviver = (revier && typeof revier === "object") ? (<ReviverPair>revier).string : <StringifyReviver>revier ;
 
