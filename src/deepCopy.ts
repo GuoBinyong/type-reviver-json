@@ -136,18 +136,23 @@ import {
 } from "./revivers"
 
 
-export const defaultPresetTypeReviverMap:TypeReviverMap<Reviver> = new Map([
+
+const defaultPresetTypeReviverArray:TypeReviverArray<ReviverPair> = [
     [Date,{string:Date_StringifyReviver, parse:Date_ParseReviver}],
     [Map,{string:Map_StringifyReviver, parse:Map_ParseReviver}],
     [Set,{string:Set_StringifyReviver, parse:Set_ParseReviver}],
     [URL,{string:URL_StringifyReviver, parse:URL_ParseReviver}],
     [RegExp,{string:RegExp_StringifyReviver, parse:RegExp_ParseReviver}],
     [Function,{string:Function_StringifyReviver, parse:Function_ParseReviver}],
-] as TypeReviverArray<ReviverPair>);
+];
+
+
+
+export const defaultPresetTypeReviverMap:TypeReviverMap<Reviver> = new Map(defaultPresetTypeReviverArray);
 
 
 
 /**
  * 通过 自定义 JSON 序列人的方式 对 value 进行 深拷贝
  */
-export const deepCopyByJSON = createDeepCopyByJSONWith(defaultPresetTypeReviverMap);
+export const deepCopyByJSON = createDeepCopyByJSONWith(new Map(defaultPresetTypeReviverArray));

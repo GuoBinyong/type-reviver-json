@@ -1,6 +1,6 @@
 {
   "name": "json-tls",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "json-tls 提供了JSON相关的工具，如:customJSONStringify、customJSONParse 等",
   "main": "dist/json-tls.cjs.js",
   "module": "dist/json-tls.es.js",
