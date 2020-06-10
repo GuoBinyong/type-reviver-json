@@ -56,6 +56,6 @@
   },
   "dependencies": {
     "json-tls": "^1.0.2",
-    "type-reviver": "file:../type-reviver"
+    "type-reviver": "^1.0.1"
   }
 }
